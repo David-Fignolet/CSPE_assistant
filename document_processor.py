@@ -1,14 +1,16 @@
 import PyPDF2
+import pytesseract
+import cv2
+import numpy as np
 import io
 import re
+from PIL import Image
 from typing import Dict, List, Tuple, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class DocumentProcessor:
     def __init__(self):
-        # Mode démo : OCR désactivé pour éviter les dépendances complexes
-        self.ocr_enabled = False
-        print("ℹ️ Mode démo : OCR désactivé. Traitement PDF uniquement.")
+        self.ocr_config = '--psm 6 --oem 3 -l fra'  # Configuration OCR pour le français
 
     def extract_text_from_pdf(self, file_content: bytes) -> str:
         """Extrait le texte d'un fichier PDF"""
@@ -22,534 +24,400 @@ class DocumentProcessor:
             print(f"Erreur lors de l'extraction PDF: {str(e)}")
             return ""
 
+    def preprocess_image(self, image: np.ndarray) -> np.ndarray:
+        """Prétraite une image pour l'OCR"""
+        try:
+            # Conversion en gris
+            if len(image.shape) == 3:
+                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = image
+            
+            # Amélioration du contraste
+            gray = cv2.convertScaleAbs(gray, alpha=1.5, beta=40)
+            
+            # Binarisation adaptative
+            binary = cv2.adaptiveThreshold(
+                gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+            )
+            
+            # Suppression du bruit
+            kernel = np.ones((1, 1), np.uint8)
+            binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+            
+            return binary
+        except Exception as e:
+            print(f"Erreur prétraitement image: {str(e)}")
+            return image
+
     def extract_text_from_image(self, file_content: bytes) -> str:
-        """Simulation d'extraction OCR pour la démo"""
-        # Pour la démo, retourner un texte d'exemple CSPE réaliste avec montants
-        return """
-CONSEIL D'ÉTAT
-Contentieux administratif
-
-REQUÊTE EN ANNULATION
-
-Objet : Contestation décision CRE n° 2024-0156 relative à la CSPE
-
-Monsieur le Président du Conseil d'État,
-
-J'ai l'honneur de contester par la présente la décision de la Commission de Régulation de l'Énergie 
-en date du 15 mars 2024, enregistrée sous le numéro CRE-2024-0156, concernant l'application de la 
-Contribution au Service Public de l'Électricité (CSPE) sur ma facture d'électricité.
-
-IDENTIFICATION DU DEMANDEUR :
-- Nom : MARTIN Jean-Pierre
-- Qualité : Consommateur final d'électricité  
-- Adresse : 15 rue de la République, 75011 Paris
-- N° de contrat EDF : 17429856234
-- Numéro de facture contestée : FAC-2024-03-001547
-
-OBJET DE LA CONTESTATION :
-La décision attaquée impose une CSPE d'un montant de 1 247,50 € sur ma consommation électrique 
-annuelle, soit une augmentation de 34% par rapport à l'année précédente.
-
-DÉTAIL DES MONTANTS RÉCLAMÉS :
-- Année 2020 : 312,75 €
-- Année 2021 : 298,80 €  
-- Année 2022 : 315,45 €
-- Année 2023 : 320,50 €
-TOTAL RÉCLAMÉ : 1 247,50 €
-
-DÉLAI DE RECOURS :
-La présente requête est formée le 12 avril 2024, soit 28 jours après notification de la décision 
-le 15 mars 2024, dans le respect du délai de recours de deux mois prévu par l'article R. 421-1 
-du code de justice administrative.
-
-MOYENS INVOQUÉS :
-1. Erreur de calcul dans l'application du tarif CSPE
-2. Non-respect de la procédure de notification préalable
-3. Violation du principe de proportionnalité
-
-PIÈCES JOINTES :
-- Pièce n°1 : Copie de la décision contestée du 15 mars 2024
-- Pièce n°2 : Facture d'électricité complète avec détail CSPE
-- Pièce n°3 : Relevé de compteur certifié
-- Pièce n°4 : Justificatif de domicile (taxe foncière 2023)
-- Pièce n°5 : Correspondance préalable avec la CRE
-
-Par ces motifs, je sollicite respectueusement l'annulation de la décision attaquée et la 
-restitution des sommes indûment perçues pour un montant total de 1 247,50 euros.
-
-Je demeure à votre disposition pour tout complément d'information.
-
-Fait à Paris, le 12 avril 2024
-
-Jean-Pierre MARTIN
-[Signature]
-        """
+        """Extrait le texte d'une image avec OCR"""
+        try:
+            # Conversion du contenu en image
+            image = Image.open(io.BytesIO(file_content))
+            
+            # Conversion en numpy array pour OpenCV
+            image_np = np.array(image)
+            
+            # Prétraitement
+            processed = self.preprocess_image(image_np)
+            
+            # Extraction du texte avec Tesseract
+            text = pytesseract.image_to_string(
+                processed,
+                config=self.ocr_config
+            )
+            return text.strip()
+        except Exception as e:
+            print(f"Erreur lors de l'extraction OCR: {str(e)}")
+            # Fallback: essayer sans prétraitement
+            try:
+                image = Image.open(io.BytesIO(file_content))
+                text = pytesseract.image_to_string(image, config=self.ocr_config)
+                return text.strip()
+            except:
+                return f"Erreur OCR: {str(e)}"
 
     def extract_text_from_file(self, file) -> str:
         """Extrait le texte d'un fichier selon son type"""
         if not file:
             return ""
         
-        if hasattr(file, 'type'):
-            # Streamlit file object
-            if file.type == 'application/pdf':
-                return self.extract_text_from_pdf(file.getvalue())
-            elif file.type in ['image/png', 'image/jpeg', 'image/jpg']:
-                # Mode démo : retourner texte d'exemple pour les images
-                print("ℹ️ Mode démo : Utilisation d'un exemple de document CSPE pour les images")
-                return self.extract_text_from_image(file.getvalue())
-            elif file.type == 'text/plain':
-                # Support des fichiers texte
-                return file.getvalue().decode('utf-8')
-            else:
-                return f"Format {file.type} non supporté en mode démo. Utilisez PDF avec texte."
-        else:
-            # File path (pour les tests)
-            if file.endswith('.pdf'):
-                with open(file, 'rb') as f:
-                    return self.extract_text_from_pdf(f.read())
-            elif file.lower().endswith(('.png', '.jpg', '.jpeg')):
-                # Mode démo : retourner texte d'exemple
-                print("ℹ️ Mode démo : Utilisation d'un exemple de document CSPE pour les images")
-                return self.extract_text_from_image(b"")
-            elif file.endswith('.txt'):
-                with open(file, 'r', encoding='utf-8') as f:
-                    return f.read()
-            else:
-                return "Format non supporté"
-
-    def extract_montants_cspe(self, text: str) -> Dict:
-        """Extrait automatiquement les montants CSPE du document"""
-        montants_info = {
-            'montant_total': 0.0,
-            'montants_detectes': [],
-            'montants_par_annee': {},
-            'confiance_extraction': 0.0,
-            'details_extraction': []
-        }
-        
-        # Patterns pour détecter les montants en euros
-        patterns_montants = [
-            # Montant total explicite
-            r'(?:total|montant total|somme totale)[\s\w]*?:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
-            r'(?:réclamé|restitution|remboursement)[\s\w]*?:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
-            
-            # Montants CSPE spécifiques
-            r'(?:CSPE|cspe)[\s\w]*?:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
-            r'(?:contribution|taxes?)[\s\w]*?:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
-            
-            # Montants avec années
-            r'(?:année|an)\s*(\d{4})\s*:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
-            r'(\d{4})\s*:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
-            
-            # Montants génériques avec formatage français
-            r'([0-9]\s*[0-9]*\s*[0-9]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
-        ]
-        
-        montants_bruts = []
-        montants_par_annee = {}
-        
-        # Extraction avec chaque pattern
-        for i, pattern in enumerate(patterns_montants):
-            matches = re.finditer(pattern, text, re.IGNORECASE)
-            for match in matches:
-                try:
-                    if i < 4:  # Patterns pour montant total
-                        montant_str = match.group(1)
-                        montant = self._parse_montant_francais(montant_str)
-                        if montant > 0:
-                            montants_bruts.append({
-                                'montant': montant,
-                                'type': 'total',
-                                'texte_original': match.group(0),
-                                'pattern': i
-                            })
-                            montants_info['details_extraction'].append(f"Montant total détecté: {montant:,.2f} € ({match.group(0).strip()})")
-                    
-                    elif i < 6:  # Patterns avec années
-                        if len(match.groups()) >= 2:
-                            annee = int(match.group(1))
-                            montant_str = match.group(2)
-                            montant = self._parse_montant_francais(montant_str)
-                            if montant > 0 and 2009 <= annee <= 2025:
-                                montants_par_annee[annee] = montant
-                                montants_info['details_extraction'].append(f"Année {annee}: {montant:,.2f} €")
-                    
-                    else:  # Patterns génériques
-                        montant_str = match.group(1)
-                        montant = self._parse_montant_francais(montant_str)
-                        if montant > 100:  # Filtrer les petits montants probablement non pertinents
-                            montants_bruts.append({
-                                'montant': montant,
-                                'type': 'generique',
-                                'texte_original': match.group(0),
-                                'pattern': i
-                            })
-                            
-                except (ValueError, IndexError):
-                    continue
-        
-        # Détection des totaux explicites dans le texte
-        total_patterns = [
-            r'TOTAL\s*(?:RÉCLAMÉ|DEMANDÉ)?\s*:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?)',
-            r'MONTANT\s*TOTAL\s*:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?)',
-            r'RESTITUTION\s*(?:DE)?\s*:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?)'
-        ]
-        
-        for pattern in total_patterns:
-            matches = re.finditer(pattern, text, re.IGNORECASE)
-            for match in matches:
-                try:
-                    montant = self._parse_montant_francais(match.group(1))
-                    if montant > 0:
-                        montants_bruts.append({
-                            'montant': montant,
-                            'type': 'total_explicite',
-                            'texte_original': match.group(0),
-                            'pattern': 'total'
-                        })
-                        montants_info['details_extraction'].append(f"Total explicite: {montant:,.2f} € ({match.group(0).strip()})")
-                except ValueError:
-                    continue
-        
-        # Logique de sélection du montant principal
-        montant_final = 0.0
-        confiance = 0.0
-        
-        # Priorité 1: Total explicite
-        totaux_explicites = [m for m in montants_bruts if m['type'] == 'total_explicite']
-        if totaux_explicites:
-            montant_final = max(totaux_explicites, key=lambda x: x['montant'])['montant']
-            confiance = 0.95
-            montants_info['details_extraction'].append(f"✅ Sélection: Total explicite ({montant_final:,.2f} €)")
-        
-        # Priorité 2: Somme des montants par année
-        elif montants_par_annee:
-            montant_final = sum(montants_par_annee.values())
-            confiance = 0.90
-            montants_info['details_extraction'].append(f"✅ Sélection: Somme par années ({montant_final:,.2f} €)")
-        
-        # Priorité 3: Montant total détecté
-        elif montants_bruts:
-            totaux = [m for m in montants_bruts if m['type'] == 'total']
-            if totaux:
-                montant_final = max(totaux, key=lambda x: x['montant'])['montant']
-                confiance = 0.80
-                montants_info['details_extraction'].append(f"✅ Sélection: Montant total détecté ({montant_final:,.2f} €)")
-            else:
-                # Prendre le plus gros montant générique
-                montant_final = max(montants_bruts, key=lambda x: x['montant'])['montant']
-                confiance = 0.60
-                montants_info['details_extraction'].append(f"⚠️ Sélection: Plus gros montant détecté ({montant_final:,.2f} €)")
-        
-        # Remplissage final
-        montants_info.update({
-            'montant_total': montant_final,
-            'montants_detectes': [m['montant'] for m in montants_bruts],
-            'montants_par_annee': montants_par_annee,
-            'confiance_extraction': confiance
-        })
-        
-        return montants_info
-
-    def _parse_montant_francais(self, montant_str: str) -> float:
-        """Parse un montant au format français (avec espaces et virgules)"""
         try:
-            # Nettoyer la chaîne
-            montant_clean = re.sub(r'[^\d,.]', '', montant_str.strip())
-            
-            # Gérer les formats français
-            if ',' in montant_clean and '.' in montant_clean:
-                # Format: 1.234,56
-                if montant_clean.rindex(',') > montant_clean.rindex('.'):
-                    montant_clean = montant_clean.replace('.', '').replace(',', '.')
+            # Gestion des fichiers Streamlit (UploadedFile)
+            if hasattr(file, 'type') and hasattr(file, 'getvalue'):
+                file_type = file.type
+                file_content = file.getvalue()
+                file_name = getattr(file, 'name', 'unknown')
+                
+                if file_type == 'application/pdf':
+                    return self.extract_text_from_pdf(file_content)
+                elif file_type in ['image/png', 'image/jpeg', 'image/jpg']:
+                    return self.extract_text_from_image(file_content)
+                elif file_type == 'text/plain':
+                    return file_content.decode('utf-8', errors='ignore')
                 else:
-                    # Format: 1,234.56
-                    montant_clean = montant_clean.replace(',', '')
-            elif ',' in montant_clean:
-                # Format: 1234,56 ou 1,234
-                if len(montant_clean.split(',')[1]) <= 2:
-                    # C'est probablement des centimes
-                    montant_clean = montant_clean.replace(',', '.')
-                else:
-                    # C'est probablement un séparateur de milliers
-                    montant_clean = montant_clean.replace(',', '')
+                    # Tentative basée sur l'extension du nom de fichier
+                    if file_name.lower().endswith('.txt'):
+                        return file_content.decode('utf-8', errors='ignore')
+                    elif file_name.lower().endswith('.pdf'):
+                        return self.extract_text_from_pdf(file_content)
+                    elif file_name.lower().endswith(('.png', '.jpg', '.jpeg')):
+                        return self.extract_text_from_image(file_content)
+                    else:
+                        return f"Format non supporté: {file_type} (fichier: {file_name})"
             
-            return float(montant_clean)
-        except (ValueError, AttributeError):
-            return 0.0
+            # Gestion des chemins de fichiers (string)
+            elif isinstance(file, str):
+                file_extension = file.split('.')[-1].lower()
+                
+                with open(file, 'rb') as f:
+                    file_content = f.read()
+                
+                if file_extension == 'pdf':
+                    return self.extract_text_from_pdf(file_content)
+                elif file_extension in ['png', 'jpg', 'jpeg']:
+                    return self.extract_text_from_image(file_content)
+                elif file_extension == 'txt':
+                    return file_content.decode('utf-8', errors='ignore')
+                else:
+                    return f"Extension non supportée: .{file_extension}"
+            
+            else:
+                return f"Type de fichier non reconnu: {type(file)}"
+                
+        except Exception as e:
+            return f"Erreur extraction fichier: {str(e)}"
 
-    def extract_date(self, text: str) -> datetime:
-        """Extrait une date du texte"""
-        # Patterns pour dates françaises
+    def extract_date(self, text: str, pattern_type: str = "any") -> Optional[datetime]:
+        """Extrait une date du texte selon différents patterns"""
+        # Patterns pour les dates françaises
         date_patterns = [
-            r'(\d{1,2})\s+(\w+)\s+(\d{4})',  # 15 mars 2024
-            r'(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})',  # 15/03/2024 ou 15-03-2024
-            r'(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})',  # 2024/03/15 ou 2024-03-15
+            r'(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})',  # DD/MM/YYYY
+            r'(\d{1,2})\s+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(\d{4})',
+            r'(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(\d{4})'
         ]
         
-        # Mapping des mois français
         months_fr = {
-            'janvier': 1, 'février': 2, 'mars': 3, 'avril': 4, 'mai': 5, 'juin': 6,
-            'juillet': 7, 'août': 8, 'septembre': 9, 'octobre': 10, 'novembre': 11, 'décembre': 12
+            'janvier': 1, 'février': 2, 'mars': 3, 'avril': 4,
+            'mai': 5, 'juin': 6, 'juillet': 7, 'août': 8,
+            'septembre': 9, 'octobre': 10, 'novembre': 11, 'décembre': 12
         }
+        
+        dates_found = []
         
         for pattern in date_patterns:
-            matches = re.finditer(pattern, text, re.IGNORECASE)
+            matches = re.findall(pattern, text, re.IGNORECASE)
             for match in matches:
                 try:
-                    groups = match.groups()
-                    if len(groups) == 3:
-                        if groups[1].isdigit():  # Format numérique
-                            if len(groups[0]) == 4:  # YYYY/MM/DD
-                                year, month, day = int(groups[0]), int(groups[1]), int(groups[2])
-                            else:  # DD/MM/YYYY
-                                day, month, year = int(groups[0]), int(groups[1]), int(groups[2])
-                        else:  # Format avec nom de mois
-                            day = int(groups[0])
-                            month_name = groups[1].lower()
-                            year = int(groups[2])
-                            month = months_fr.get(month_name, 1)
-                        
-                        return datetime(year, month, day)
+                    if len(match) == 3 and match[0].isdigit():
+                        # Format DD/MM/YYYY
+                        day, month, year = int(match[0]), int(match[1]), int(match[2])
+                        if 1 <= day <= 31 and 1 <= month <= 12:
+                            date_obj = datetime(year, month, day)
+                            dates_found.append(date_obj)
+                    elif len(match) == 3 and match[1].lower() in months_fr:
+                        # Format DD month YYYY
+                        day, month_name, year = int(match[0]), match[1].lower(), int(match[2])
+                        month = months_fr[month_name]
+                        if 1 <= day <= 31:
+                            date_obj = datetime(year, month, day)
+                            dates_found.append(date_obj)
+                    elif len(match) == 2 and match[0].lower() in months_fr:
+                        # Format month YYYY
+                        month_name, year = match[0].lower(), int(match[1])
+                        month = months_fr[month_name]
+                        date_obj = datetime(year, month, 1)
+                        dates_found.append(date_obj)
                 except (ValueError, KeyError):
                     continue
         
-        # Fallback : date actuelle
-        return datetime.now()
+        if dates_found:
+            # Retourner la date la plus récente par défaut
+            return max(dates_found)
+        return None
 
-    def check_period(self, text: str) -> dict:
-        """Vérifie si la période CSPE est couverte (2009-2015)"""
-        # Recherche de période dans le texte
+    def extract_amounts(self, text: str) -> List[float]:
+        """Extrait les montants en euros du texte"""
+        # Patterns pour les montants
+        amount_patterns = [
+            r'(\d+(?:\s?\d{3})*(?:[.,]\d{2})?)\s*€',  # 1 234,56 €
+            r'(\d+(?:\s?\d{3})*(?:[.,]\d{2})?)\s*euros?',  # 1 234,56 euros
+            r'montant.*?(\d+(?:\s?\d{3})*(?:[.,]\d{2})?)',  # montant de 1234,56
+            r'somme.*?(\d+(?:\s?\d{3})*(?:[.,]\d{2})?)',  # somme de 1234,56
+        ]
+        
+        amounts = []
+        for pattern in amount_patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for match in matches:
+                try:
+                    # Normaliser le montant
+                    amount_str = match.replace(' ', '').replace(',', '.')
+                    amount = float(amount_str)
+                    amounts.append(amount)
+                except ValueError:
+                    continue
+        
+        return amounts
+
+    def extract_entities(self, text: str) -> Dict:
+        """Extrait les entités importantes du document CSPE"""
+        entities = {
+            'dates': [],
+            'amounts': [],
+            'names': [],
+            'references': [],
+            'periods': []
+        }
+        
+        # Extraction des dates
+        date = self.extract_date(text)
+        if date:
+            entities['dates'].append(date.strftime('%d/%m/%Y'))
+        
+        # Extraction des montants
+        amounts = self.extract_amounts(text)
+        entities['amounts'] = amounts
+        
+        # Extraction des noms (patterns simples)
+        name_patterns = [
+            r'[Mm]onsieur\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'[Mm]adame\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'demandeur\s*:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+        ]
+        
+        for pattern in name_patterns:
+            matches = re.findall(pattern, text)
+            entities['names'].extend(matches)
+        
+        # Extraction des références juridiques
+        ref_patterns = [
+            r'(CRE[-\s]?\d{4}[-\s]?\d+)',  # CRE-2024-001
+            r'(CE\s+\d+/\d+/\d+)',  # CE 12/03/2024
+            r'(article\s+\w+)',  # article L123-4
+        ]
+        
+        for pattern in ref_patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            entities['references'].extend(matches)
+        
+        # Extraction des périodes
         period_patterns = [
-            r'période\s+(\d{4})\s*[-à]\s*(\d{4})',
-            r'(\d{4})\s*[-à]\s*(\d{4})',
-            r'années?\s+(\d{4})',
+            r'(\d{4})[-\s]?(\d{4})',  # 2010-2015
+            r'période\s+(\d{4})\s+(?:à|-)?\s*(\d{4})',  # période 2010 à 2015
         ]
         
         for pattern in period_patterns:
-            matches = re.finditer(pattern, text, re.IGNORECASE)
+            matches = re.findall(pattern, text)
             for match in matches:
-                groups = match.groups()
-                if len(groups) >= 2:
-                    try:
-                        start_year = int(groups[0])
-                        end_year = int(groups[1])
-                        
-                        # Période CSPE couverte : 2009-2015
-                        if 2009 <= start_year <= 2015 and 2009 <= end_year <= 2015:
-                            return {
-                                'status': '✅ Couverte',
-                                'details': f'Période couverte : {start_year}-{end_year}'
-                            }
-                        else:
-                            return {
-                                'status': '❌ Non couverte',
-                                'details': f'Période {start_year}-{end_year} hors couverture (2009-2015)'
-                            }
-                    except ValueError:
-                        continue
-                elif len(groups) == 1:
-                    try:
-                        year = int(groups[0])
-                        if 2009 <= year <= 2015:
-                            return {
-                                'status': '✅ Couverte',
-                                'details': f'Année {year} dans la période couverte'
-                            }
-                        else:
-                            return {
-                                'status': '❌ Non couverte',
-                                'details': f'Année {year} hors période couverte (2009-2015)'
-                            }
-                    except ValueError:
-                        continue
+                entities['periods'].append(f"{match[0]}-{match[1]}")
+        
+        return entities
+
+    def check_deadline_compliance(self, decision_date: Optional[datetime], 
+                                request_date: Optional[datetime]) -> Dict:
+        """Vérifie le respect du délai de 2 mois"""
+        if not decision_date or not request_date:
+            return {
+                'compliant': False,
+                'days_elapsed': -1,
+                'status': '❌',
+                'details': 'Dates manquantes'
+            }
+        
+        delta = request_date - decision_date
+        days_elapsed = delta.days
+        
+        # Règle CSPE: 2 mois = 60 jours calendaires
+        is_compliant = days_elapsed <= 60
         
         return {
-            'status': '⚠️ Indéterminée',
-            'details': 'Période non détectée dans le document'
+            'compliant': is_compliant,
+            'days_elapsed': days_elapsed,
+            'status': '✅' if is_compliant else '❌',
+            'details': f'Délai: {days_elapsed} jours (max: 60 jours)'
         }
 
-    def check_delay(self, text: str) -> dict:
-        """Vérifie le délai de recours (2 mois pour CSPE)"""
-        # Recherche des dates de décision et de recours
-        decision_patterns = [
-            r'décision.{0,50}(\d{1,2}\s+\w+\s+\d{4})',
-            r'en date du\s+(\d{1,2}\s+\w+\s+\d{4})',
-            r'notification.{0,20}(\d{1,2}\s+\w+\s+\d{4})',
-        ]
-        
-        recours_patterns = [
-            r'requête.{0,50}formée.{0,20}(\d{1,2}\s+\w+\s+\d{4})',
-            r'présente.{0,20}(\d{1,2}\s+\w+\s+\d{4})',
-            r'fait à.{0,50}(\d{1,2}\s+\w+\s+\d{4})',
-        ]
-        
-        decision_date = None
-        recours_date = None
-        
-        # Extraire la date de décision
-        for pattern in decision_patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                decision_date = self.extract_date(match.group(1))
-                break
-        
-        # Extraire la date de recours
-        for pattern in recours_patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                recours_date = self.extract_date(match.group(1))
-                break
-        
-        if decision_date and recours_date:
-            # Calculer la différence en jours
-            delta = recours_date - decision_date
-            days_elapsed = delta.days
-            
-            # Délai légal : 2 mois = 60 jours
-            if days_elapsed <= 60:
-                return {
-                    'status': '✅ Respecté',
-                    'details': f'Recours formé {days_elapsed} jours après la décision (≤ 60 jours)',
-                    'decision_date': decision_date.strftime('%d/%m/%Y'),
-                    'recours_date': recours_date.strftime('%d/%m/%Y'),
-                    'days_elapsed': days_elapsed
-                }
-            else:
-                return {
-                    'status': '❌ Dépassé',
-                    'details': f'Recours formé {days_elapsed} jours après la décision (> 60 jours)',
-                    'decision_date': decision_date.strftime('%d/%m/%Y'),
-                    'recours_date': recours_date.strftime('%d/%m/%Y'),
-                    'days_elapsed': days_elapsed
-                }
-        else:
-            return {
-                'status': '⚠️ Indéterminé',
-                'details': 'Dates de décision et/ou de recours non détectées clairement',
-                'decision_date': decision_date.strftime('%d/%m/%Y') if decision_date else 'Non détectée',
-                'recours_date': recours_date.strftime('%d/%m/%Y') if recours_date else 'Non détectée'
-            }
-
-    def check_demandeur_quality(self, text: str) -> dict:
-        """Vérifie la qualité du demandeur"""
-        # Indicateurs de qualité du demandeur
-        quality_indicators = [
-            r'consommateur\s+(final|d\'électricité)',
-            r'client\s+EDF',
-            r'abonné',
-            r'titulaire\s+du\s+contrat',
-            r'propriétaire',
-            r'locataire',
-            r'gestionnaire',
-        ]
-        
-        # Éléments d'identification
-        identification_elements = [
-            r'nom\s*:\s*[\w\s\-]+',
-            r'adresse\s*:\s*[\w\s\-,]+',
-            r'contrat\s+(EDF|n°|numéro)',
-            r'facture.{0,20}n°',
-        ]
-        
-        quality_found = False
-        identification_found = False
-        
-        for pattern in quality_indicators:
-            if re.search(pattern, text, re.IGNORECASE):
-                quality_found = True
-                break
-        
-        for pattern in identification_elements:
-            if re.search(pattern, text, re.IGNORECASE):
-                identification_found = True
-                break
-        
-        if quality_found and identification_found:
-            return {
-                'status': '✅ Conforme',
-                'details': 'Demandeur identifié et qualifié (consommateur concerné)'
-            }
-        elif quality_found:
-            return {
-                'status': '⚠️ Partiel',
-                'details': 'Qualité du demandeur indiquée mais identification incomplète'
-            }
-        elif identification_found:
-            return {
-                'status': '⚠️ Partiel',
-                'details': 'Demandeur identifié mais qualité à vérifier'
-            }
-        else:
-            return {
-                'status': '❌ Insuffisant',
-                'details': 'Qualité et identification du demandeur non établies'
-            }
-
-    def check_pieces_jointes(self, text: str) -> dict:
-        """Vérifie la présence des pièces justificatives"""
-        # Pièces essentielles pour CSPE
-        required_pieces = {
-            'décision_contestée': [r'décision.{0,30}contestée', r'copie.{0,20}décision'],
-            'facture': [r'facture', r'facture.{0,20}électricité'],
-            'relevé_compteur': [r'relevé.{0,20}compteur', r'compteur'],
-            'justificatif_domicile': [r'justificatif.{0,20}domicile', r'taxe.{0,20}foncière'],
+    def analyze_document_structure(self, text: str) -> Dict:
+        """Analyse la structure du document pour détecter les éléments CSPE"""
+        analysis = {
+            'document_type': 'unknown',
+            'has_header': False,
+            'has_signature': False,
+            'has_attachments': False,
+            'quality_score': 0.0
         }
         
-        pieces_found = {}
-        total_pieces = 0
+        # Détection du type de document
+        if 'conseil d\'état' in text.lower() or 'conseil d etat' in text.lower():
+            analysis['document_type'] = 'requete_conseil_etat'
+        elif 'cre' in text.lower() and 'cspe' in text.lower():
+            analysis['document_type'] = 'reclamation_cspe'
+        elif 'réclamation' in text.lower() or 'reclamation' in text.lower():
+            analysis['document_type'] = 'reclamation'
         
-        # Compter les pièces mentionnées
-        pieces_pattern = r'pièce.{0,20}n°\s*\d+'
-        total_pieces = len(re.findall(pieces_pattern, text, re.IGNORECASE))
+        # Vérifications structurelles
+        if any(word in text.lower() for word in ['monsieur le président', 'madame la présidente']):
+            analysis['has_header'] = True
         
-        # Vérifier chaque type de pièce
-        for piece_type, patterns in required_pieces.items():
-            found = False
-            for pattern in patterns:
-                if re.search(pattern, text, re.IGNORECASE):
-                    found = True
-                    break
-            pieces_found[piece_type] = found
+        if any(word in text.lower() for word in ['signature', 'cordialement', 'salutations']):
+            analysis['has_signature'] = True
         
-        # Évaluation globale
-        pieces_ok = sum(pieces_found.values())
-        total_required = len(required_pieces)
+        if any(word in text.lower() for word in ['pièce jointe', 'ci-joint', 'annexe']):
+            analysis['has_attachments'] = True
         
-        if pieces_ok >= 3:  # Au moins 3 des 4 pièces essentielles
-            return {
-                'status': '✅ Complètes',
-                'details': f'{pieces_ok}/{total_required} pièces essentielles détectées ({total_pieces} pièces au total)',
-                'pieces_found': pieces_found
-            }
-        elif pieces_ok >= 2:
-            return {
-                'status': '⚠️ Partielles',
-                'details': f'{pieces_ok}/{total_required} pièces essentielles détectées - Compléments nécessaires',
-                'pieces_found': pieces_found
-            }
-        else:
-            return {
-                'status': '❌ Insuffisantes',
-                'details': f'Seulement {pieces_ok}/{total_required} pièces essentielles détectées',
-                'pieces_found': pieces_found
-            }
+        # Score de qualité
+        quality_factors = [
+            analysis['has_header'],
+            analysis['has_signature'],
+            'cspe' in text.lower(),
+            'cre' in text.lower(),
+            len(text) > 100
+        ]
+        
+        analysis['quality_score'] = sum(quality_factors) / len(quality_factors)
+        
+        return analysis
 
-    def analyze_text(self, text: str) -> dict:
-        """Analyse complète du texte selon les 4 critères CSPE + extraction montants"""
-        # Extraction automatique des montants
-        montants_info = self.extract_montants_cspe(text)
+    def extract_cspe_criteria(self, text: str) -> Dict:
+        """Extrait et analyse les 4 critères CSPE spécifiques"""
+        criteria = {
+            'delai_recours': {'status': '⚠️', 'details': 'Non déterminé'},
+            'qualite_demandeur': {'status': '⚠️', 'details': 'Non déterminé'},
+            'objet_valide': {'status': '⚠️', 'details': 'Non déterminé'},
+            'pieces_justificatives': {'status': '⚠️', 'details': 'Non déterminé'}
+        }
+        
+        # Critère 1: Délai de recours
+        dates = re.findall(r'(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})', text)
+        if len(dates) >= 2:
+            try:
+                # Supposer que la première date est la décision, la dernière la réclamation
+                decision_date = datetime(int(dates[0][2]), int(dates[0][1]), int(dates[0][0]))
+                request_date = datetime(int(dates[-1][2]), int(dates[-1][1]), int(dates[-1][0]))
+                
+                deadline_check = self.check_deadline_compliance(decision_date, request_date)
+                criteria['delai_recours'] = {
+                    'status': deadline_check['status'],
+                    'details': deadline_check['details']
+                }
+            except:
+                pass
+        
+        # Critère 2: Qualité du demandeur
+        if any(word in text.lower() for word in ['consommateur', 'particulier', 'client']):
+            criteria['qualite_demandeur'] = {
+                'status': '✅',
+                'details': 'Consommateur final identifié'
+            }
+        elif any(word in text.lower() for word in ['entreprise', 'société', 'sarl']):
+            criteria['qualite_demandeur'] = {
+                'status': '✅',
+                'details': 'Entreprise concernée'
+            }
+        
+        # Critère 3: Objet valide
+        if 'cspe' in text.lower() and any(word in text.lower() for word in ['conteste', 'contestation', 'réclamation']):
+            criteria['objet_valide'] = {
+                'status': '✅',
+                'details': 'Contestation CSPE explicite'
+            }
+        
+        # Critère 4: Pièces justificatives
+        pieces_keywords = ['pièce', 'document', 'facture', 'justificatif', 'copie', 'ci-joint']
+        pieces_found = sum(1 for keyword in pieces_keywords if keyword in text.lower())
+        
+        if pieces_found >= 3:
+            criteria['pieces_justificatives'] = {
+                'status': '✅',
+                'details': f'{pieces_found} types de pièces mentionnées'
+            }
+        elif pieces_found >= 1:
+            criteria['pieces_justificatives'] = {
+                'status': '⚠️',
+                'details': f'Pièces incomplètes ({pieces_found} types)'
+            }
+        
+        return criteria
+
+    def generate_analysis_summary(self, text: str) -> Dict:
+        """Génère un résumé complet de l'analyse du document"""
+        entities = self.extract_entities(text)
+        structure = self.analyze_document_structure(text)
+        criteria = self.extract_cspe_criteria(text)
+        
+        # Classification automatique basée sur les critères
+        criteria_ok = sum(1 for c in criteria.values() if c['status'] == '✅')
+        criteria_total = len(criteria)
+        
+        if criteria_ok == criteria_total:
+            classification = 'RECEVABLE'
+            confidence = 0.90 + (structure['quality_score'] * 0.10)
+        elif any(c['status'] == '❌' for c in criteria.values()):
+            classification = 'IRRECEVABLE'
+            confidence = 0.85
+        else:
+            classification = 'INSTRUCTION'
+            confidence = 0.70
         
         return {
-            'period_check': self.check_period(text),
-            'delay_check': self.check_delay(text),
-            'demandeur_quality': self.check_demandeur_quality(text),
-            'pieces_jointes': self.check_pieces_jointes(text),
-            'montants_extraction': montants_info,  # Nouvelle section
-            'date_extraction': self.extract_date(text),
-            'text_length': len(text),
-            'contains_cspe': 'CSPE' in text.upper(),
-            'contains_cre': 'CRE' in text.upper() or 'Commission de Régulation' in text,
-            'contains_conseil_etat': 'Conseil d\'État' in text or 'CONSEIL D\'ÉTAT' in text
+            'classification': classification,
+            'confidence_score': min(confidence, 0.99),
+            'criteria': criteria,
+            'entities': entities,
+            'structure': structure,
+            'processing_time': 0.73,  # Simulé
+            'observations': f"Document {structure['document_type']} - {criteria_ok}/{criteria_total} critères validés"
         }
+
+# Fonctions utilitaires pour la compatibilité
+def process_uploaded_file(uploaded_file):
+    """Traite un fichier uploadé via Streamlit"""
+    processor = DocumentProcessor()
+    return processor.extract_text_from_file(uploaded_file)
+
+def analyze_cspe_document(text: str):
+    """Analyse complète d'un document CSPE"""
+    processor = DocumentProcessor()
+    return processor.generate_analysis_summary(text)
