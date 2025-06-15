@@ -1,6 +1,6 @@
-# CSPE Assistant - Assistant CSPE - Conseil d'État
+# CSPE Assistant - Assistant CSPE - CE
 
-Système d'aide à l'instruction des réclamations CSPE (Contribution au Service Public de l'Électricité) pour le Conseil d'État.
+Système d'aide à l'instruction des réclamations CSPE (Contribution au Service Public de l'Électricité).
 
 ## Fonctionnalités
 
@@ -128,8 +128,8 @@ python database_memory.py init
 
 - Le système utilise uniquement des modèles LLM locaux (Mistral via Ollama)
 - Les données restent sur site
-- Conformité avec les normes de sécurité du Conseil d'État
+- Conformité avec les normes de sécurité de l'organisme
 
 ## Support
 
-Pour toute question ou problème, contacter le support technique du Conseil d'État.
+Pour toute question ou problème, contacter le support technique
