@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 # 🏛️ Assistant CSPE - CE
 
 ## **Système de Classification Intelligente des Dossiers CSPE avec LLM**
+=======
+# CSPE Assistant - Assistant CSPE - CE
+
+Système d'aide à l'instruction des réclamations CSPE (Contribution au Service Public de l'Électricité).
+>>>>>>> 15b98ceda1ea70647e4b8b8c1e3cf40d2d4c21ab
 
 Développé par **David Michel-Larrieux** - Data Scientist en apprentissage  
 **Poste visé :** Data Scientist en apprentissage - Cellule IA - CE
@@ -258,13 +264,20 @@ python tests/validation.py
 - [API Reference](docs/api-reference.md)
 - [Guide utilisateur](docs/user-guide.md)
 
+<<<<<<< HEAD
 ### **🤝 Support et Contact**
 - **Email :** david.michel-larrieux@conseil-etat.fr
 - **LinkedIn :** [David Michel-Larrieux](https://linkedin.com/in/david-michel-larrieux)
 - **GitHub :** [Profil développeur](https://github.com/david-michel-larrieux)
+=======
+- Le système utilise uniquement des modèles LLM locaux (Mistral via Ollama)
+- Les données restent sur site
+- Conformité avec les normes de sécurité de l'organisme
+>>>>>>> 15b98ceda1ea70647e4b8b8c1e3cf40d2d4c21ab
 
 ---
 
+<<<<<<< HEAD
 ## ⚠️ **Notes Importantes**
 
 ### **🔒 Sécurité et Confidentialité**
@@ -312,3 +325,6 @@ Ce projet est développé dans le cadre d'une candidature pour un poste d'appren
 
 **🏛️ Conseil d'État - Cellule IA et Innovation**  
 *L'IA au service de l'État de droit*
+=======
+Pour toute question ou problème, contacter le support technique
+>>>>>>> 15b98ceda1ea70647e4b8b8c1e3cf40d2d4c21ab
