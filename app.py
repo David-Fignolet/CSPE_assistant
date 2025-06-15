@@ -46,6 +46,82 @@ def get_env_var(key, default):
     except Exception:
         return default
 
+def extract_metadata_suggestions(text: str) -> dict:
+    """Extrait des suggestions de métadonnées du document"""
+    suggestions = {
+        'numero_dossier': '',
+        'demandeur': '',
+        'activite': '',
+        'periode_debut': 2009,
+        'periode_fin': 2015
+    }
+    
+    # Extraction numéro de dossier
+    numero_patterns = [
+        r'(?:dossier|n°|numéro|ref|référence)\s*:?\s*([A-Z0-9\-]+)',
+        r'CSPE[\-\s]*(\d{4}[\-\s]*\d+)',
+        r'CRE[\-\s]*(\d{4}[\-\s]*\d+)'
+    ]
+    
+    for pattern in numero_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            suggestions['numero_dossier'] = match.group(1).strip()
+            break
+    
+    # Extraction demandeur
+    demandeur_patterns = [
+        r'(?:demandeur|nom|société|entreprise)\s*:?\s*([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ\s\-]+)',
+        r'([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ\s\-]+)\s+(?:SARL|SAS|SA|EURL)',
+        r'Fait à [^,]+,?\s+(?:le\s+\d+[^,]+,?\s+)?([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ\s\-]+)'
+    ]
+    
+    for pattern in demandeur_patterns:
+        match = re.search(pattern, text)
+        if match:
+            demandeur = match.group(1).strip()
+            if len(demandeur) > 3 and demandeur not in ['Monsieur', 'Madame', 'Conseil']:
+                suggestions['demandeur'] = demandeur
+                break
+    
+    # Extraction activité
+    activite_patterns = [
+        r'(?:activité|secteur|métier)\s*:?\s*([A-ZÀ-Ÿa-zà-ÿ\s]+)',
+        r'(?:fonderie|usinage|industrie|manufacturing|distribution|commerce)',
+        r'(?:FONDERIE|USINAGE|INDUSTRIE|MANUFACTURING|DISTRIBUTION|COMMERCE)'
+    ]
+    
+    for pattern in activite_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            if 'activité' in pattern.lower() or 'secteur' in pattern.lower():
+                suggestions['activite'] = match.group(1).strip()
+            else:
+                suggestions['activite'] = match.group(0).strip().title()
+            break
+    
+    # Extraction période
+    periode_patterns = [
+        r'période\s+(\d{4})\s*[-à]\s*(\d{4})',
+        r'années?\s+(\d{4})\s*[-à]\s*(\d{4})',
+        r'(\d{4})\s*[-à]\s*(\d{4})'
+    ]
+    
+    for pattern in periode_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            try:
+                debut = int(match.group(1))
+                fin = int(match.group(2))
+                if 2009 <= debut <= 2015 and 2009 <= fin <= 2015:
+                    suggestions['periode_debut'] = debut
+                    suggestions['periode_fin'] = fin
+                    break
+            except ValueError:
+                continue
+    
+    return suggestions
+
 def extract_and_display_amounts(processor, uploaded_files):
     """Extrait et affiche les montants des documents uploadés"""
     if not uploaded_files:
@@ -683,26 +759,65 @@ def main():
                 for file in uploaded_files:
                     st.write(f"• **{file.name}** ({file.type}) - {file.size} bytes")
                 
-                # Extraction automatique des montants
+                # Extraction automatique des montants ET suggestions métadonnées
                 montants_info, montant_final = extract_and_display_amounts(processor, uploaded_files)
                 
-                # Formulaire métadonnées dossier (sans montant manuel)
+                # Extraction de suggestions pour les métadonnées
+                combined_text = ""
+                for file in uploaded_files:
+                    text = processor.extract_text_from_file(file)
+                    combined_text += f"\n{text}\n"
+                
+                # Suggestions automatiques basées sur l'analyse du texte
+                suggestions = extract_metadata_suggestions(combined_text)
+                
+                # Formulaire métadonnées dossier (avec suggestions automatiques)
                 with st.form("dossier_expert_form"):
                     st.subheader("📋 Métadonnées du Dossier CSPE")
                     
+                    # Afficher les suggestions si disponibles
+                    if any(suggestions.values()):
+                        with st.expander("💡 Suggestions automatiques détectées", expanded=True):
+                            suggestion_text = []
+                            if suggestions['numero_dossier']:
+                                suggestion_text.append(f"**Numéro:** {suggestions['numero_dossier']}")
+                            if suggestions['demandeur']:
+                                suggestion_text.append(f"**Demandeur:** {suggestions['demandeur']}")
+                            if suggestions['activite']:
+                                suggestion_text.append(f"**Activité:** {suggestions['activite']}")
+                            if suggestions['periode_debut'] != 2009 or suggestions['periode_fin'] != 2015:
+                                suggestion_text.append(f"**Période:** {suggestions['periode_debut']}-{suggestions['periode_fin']}")
+                            
+                            if suggestion_text:
+                                st.info("🤖 " + " | ".join(suggestion_text))
+                            
+                            utiliser_suggestions = st.checkbox("Utiliser les suggestions automatiques", value=True)
+                    else:
+                        utiliser_suggestions = False
+                    
                     col1, col2 = st.columns(2)
                     with col1:
-                        numero_dossier = st.text_input("Numéro de dossier*", placeholder="CSPE-2024-001")
-                        demandeur = st.text_input("Demandeur*", placeholder="Société ABC / M. Jean MARTIN")
-                        activite = st.text_input("Activité", placeholder="Industrie manufacturière")
+                        default_numero = suggestions['numero_dossier'] if utiliser_suggestions and suggestions['numero_dossier'] else ""
+                        default_demandeur = suggestions['demandeur'] if utiliser_suggestions and suggestions['demandeur'] else ""
+                        default_activite = suggestions['activite'] if utiliser_suggestions and suggestions['activite'] else ""
+                        
+                        numero_dossier = st.text_input("Numéro de dossier*", value=default_numero, placeholder="CSPE-2024-001")
+                        demandeur = st.text_input("Demandeur*", value=default_demandeur, placeholder="Société ABC / M. Jean MARTIN")
+                        activite = st.text_input("Activité", value=default_activite, placeholder="Industrie manufacturière")
                     
                     with col2:
+                        default_debut = suggestions['periode_debut'] if utiliser_suggestions else 2009
+                        default_fin = suggestions['periode_fin'] if utiliser_suggestions else 2015
+                        
                         date_reclamation = st.date_input("Date réclamation*", value=datetime.now())
-                        periode_debut = st.number_input("Période début", min_value=2009, max_value=2015, value=2009)
-                        periode_fin = st.number_input("Période fin", min_value=2009, max_value=2015, value=2015)
+                        periode_debut = st.number_input("Période début", min_value=2009, max_value=2015, value=default_debut)
+                        periode_fin = st.number_input("Période fin", min_value=2009, max_value=2015, value=default_fin)
                     
                     # Affichage du montant final (auto + correction)
-                    st.info(f"💰 **Montant final retenu pour l'analyse :** {montant_final:,.2f} €")
+                    if montants_info and montants_info.get('confiance_extraction', 0) > 0.5:
+                        st.success(f"💰 **Montant final retenu pour l'analyse :** {montant_final:,.2f} € ✅ (auto-détecté)")
+                    else:
+                        st.info(f"💰 **Montant final retenu pour l'analyse :** {montant_final:,.2f} € ✏️ (saisi/corrigé)")
                     
                     if st.form_submit_button("⚖️ INSTRUCTION EXPERTE PAR L'IA", type="primary"):
                         if not numero_dossier or not demandeur:
@@ -793,23 +908,34 @@ def main():
                                     # Affichage des résultats experts
                                     display_expert_analysis_results(results)
                                     
-                                    # Actions expertes
-                                    st.markdown("### 🎯 Actions Instructeur")
-                                    col1, col2, col3 = st.columns(3)
-                                    
-                                    with col1:
-                                        if st.button("✅ Valider l'Instruction", type="primary"):
-                                            st.success("✅ Instruction validée par l'expert !")
-                                    with col2:
-                                        if st.button("🔄 Complément d'Instruction", key="complement"):
-                                            st.warning("🔄 Dossier marqué pour complément d'instruction")
-                                    with col3:
-                                        if st.button("📄 Rapport d'Instruction", key="rapport"):
-                                            if 'dossier_id' in locals():
-                                                st.success("📄 Rapport d'instruction expert généré !")
-                                    
                                 except Exception as e:
                                     st.error(f"⚠️ Erreur lors de l'instruction experte: {str(e)}")
+                
+                # Actions expertes (en dehors du formulaire pour éviter l'erreur Streamlit)
+                if 'results' in locals() and results:
+                    st.markdown("### 🎯 Actions Instructeur")
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        if st.button("✅ Valider l'Instruction", type="primary", key="validate_expert"):
+                            st.success("✅ Instruction validée par l'expert !")
+                    with col2:
+                        if st.button("🔄 Complément d'Instruction", key="complement_expert"):
+                            st.warning("🔄 Dossier marqué pour complément d'instruction")
+                    with col3:
+                        if st.button("📄 Rapport d'Instruction", key="rapport_expert"):
+                            if 'dossier_id' in locals() and dossier_id:
+                                rapport_path = db_manager.generate_pdf_report(dossier_id)
+                                if rapport_path:
+                                    st.success("📄 Rapport d'instruction expert généré !")
+                                    st.download_button(
+                                        "💾 Télécharger le rapport",
+                                        open(rapport_path, 'rb').read(),
+                                        file_name=f"instruction_expert_{numero_dossier}.pdf",
+                                        mime="application/pdf"
+                                    )
+                                else:
+                                    st.info("📄 Génération PDF non disponible")
             else:
                 st.info("📁 Veuillez uploader le dossier CSPE pour l'instruction experte")
                 
