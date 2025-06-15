@@ -1,27 +1,51 @@
 version: '3.8'
 
 services:
-  app:
+  cspe_app:  # Nom harmonisé avec start.bat
     build: .
     ports:
       - "8501:8501"
     environment:
-      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_URL=http://cspe_ollama:11434  # Nom harmonisé
       - DEFAULT_MODEL=mistral:7b
+      - DATABASE_URL=sqlite:///app/data/cspe_local.db  # Base locale
     volumes:
       - ./data:/app/data
       - ./uploads:/app/uploads
       - ./logs:/app/logs
     depends_on:
-      - ollama
+      - cspe_ollama
+    restart: unless-stopped
+    networks:
+      - cspe_network
 
-  ollama:
+  cspe_ollama:  # Nom harmonisé avec start.bat
     image: ollama/ollama:latest
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     command: serve
+    restart: unless-stopped
+    networks:
+      - cspe_network
+    # Configuration GPU si disponible
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Variables d'environnement pour optimisation
+    environment:
+      - OLLAMA_NUM_PARALLEL=2
+      - OLLAMA_MAX_LOADED_MODELS=1
 
 volumes:
   ollama_data:
+    driver: local
+
+networks:
+  cspe_network:
+    driver: bridge

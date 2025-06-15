@@ -1,14 +1,57 @@
+# REQUIREMENTS.TXT COMPLET - CSPE ASSISTANT
+
+# ==========================================
+# DÉPENDANCES PRINCIPALES (OBLIGATOIRES)
+# ==========================================
+
+# Interface utilisateur
 streamlit==1.29.0
+
+# Traitement de données
 pandas==2.1.0
-python-dateutil==2.8.2
-PyPDF2==3.0.1
-python-docx==0.8.11
 numpy==1.24.3
-pillow==10.0.0
+
+# Base de données
+sqlalchemy==2.0.23
+
+# Traitement de documents
+PyPDF2==3.0.1
+
+# Génération de rapports PDF
+fpdf2==2.7.6
+
+# API et web
 requests==2.31.0
+
+# Utilitaires
+python-dateutil==2.8.2
 python-dotenv==1.0.0
-python-multipart==0.0.6
-fastapi==0.109.0
-uvicorn==0.27.0
-aiohttp==3.9.1
-python-ollama==0.2.4
+
+# ==========================================
+# DÉPENDANCES OPTIONNELLES (POUR FONCTIONNALITÉS AVANCÉES)
+# ==========================================
+
+# Graphiques et visualisation
+plotly==5.17.0
+matplotlib==3.7.2
+
+# Traitement d'images et OCR (optionnel)
+pillow==10.0.0
+# pytesseract==0.3.10  # Décommenté si Tesseract installé
+# opencv-python==4.8.1.78  # Décommenté si OpenCV requis
+
+# API FastAPI (pour développement avancé)
+# fastapi==0.109.0
+# uvicorn==0.27.0
+
+# NLP avancé (optionnel)
+# spacy==3.7.2
+# transformers==4.35.2
+
+# ==========================================
+# INSTALLATION ALTERNATIVE AVEC CONDA
+# ==========================================
+
+# Si vous préférez conda :
+# conda install streamlit pandas numpy sqlalchemy
+# pip install fpdf2 requests python-dotenv PyPDF2
