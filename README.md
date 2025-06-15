@@ -44,3 +44,41 @@ python app.py
 2. Lancer l'analyse
 3. Vérifier les résultats d'analyse
 4. Générer le rapport final
+
+## Tests
+
+1. Lancer les tests :
+```bash
+python -m pytest tests
+```
+
+2. Lancer le diagnostic :
+```bash
+python diagnostic.py
+```
+
+## Dépannage
+
+1. Vérifier les logs :
+```bash
+tail -f logs/app.log
+```
+
+2. Vérifier les logs Docker :
+```bash
+docker-compose logs
+```
+
+# Assistant CSPE - Conseil d'État
+
+## Description
+Système d'aide à l'instruction des réclamations CSPE pour le Conseil d'État.
+
+## Installation
+
+### Prérequis
+- Python 3.8+
+- PostgreSQL 13+
+- Polices Marianne et Lato installées
+- Tesseract-OCR
+- OpenCV
