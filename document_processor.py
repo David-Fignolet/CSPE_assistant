@@ -1,7 +1,7 @@
 import PyPDF2
 import io
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from datetime import datetime
 
 class DocumentProcessor:
@@ -24,7 +24,7 @@ class DocumentProcessor:
 
     def extract_text_from_image(self, file_content: bytes) -> str:
         """Simulation d'extraction OCR pour la démo"""
-        # Pour la démo, retourner un texte d'exemple CSPE réaliste
+        # Pour la démo, retourner un texte d'exemple CSPE réaliste avec montants
         return """
 CONSEIL D'ÉTAT
 Contentieux administratif
@@ -48,7 +48,14 @@ IDENTIFICATION DU DEMANDEUR :
 
 OBJET DE LA CONTESTATION :
 La décision attaquée impose une CSPE d'un montant de 1 247,50 € sur ma consommation électrique 
-annuelle, soit une augmentation de 34% par rapport à l'année précédente, sans justification claire.
+annuelle, soit une augmentation de 34% par rapport à l'année précédente.
+
+DÉTAIL DES MONTANTS RÉCLAMÉS :
+- Année 2020 : 312,75 €
+- Année 2021 : 298,80 €  
+- Année 2022 : 315,45 €
+- Année 2023 : 320,50 €
+TOTAL RÉCLAMÉ : 1 247,50 €
 
 DÉLAI DE RECOURS :
 La présente requête est formée le 12 avril 2024, soit 28 jours après notification de la décision 
@@ -68,7 +75,7 @@ PIÈCES JOINTES :
 - Pièce n°5 : Correspondance préalable avec la CRE
 
 Par ces motifs, je sollicite respectueusement l'annulation de la décision attaquée et la 
-restitution des sommes indûment perçues.
+restitution des sommes indûment perçues pour un montant total de 1 247,50 euros.
 
 Je demeure à votre disposition pour tout complément d'information.
 
@@ -110,6 +117,167 @@ Jean-Pierre MARTIN
                     return f.read()
             else:
                 return "Format non supporté"
+
+    def extract_montants_cspe(self, text: str) -> Dict:
+        """Extrait automatiquement les montants CSPE du document"""
+        montants_info = {
+            'montant_total': 0.0,
+            'montants_detectes': [],
+            'montants_par_annee': {},
+            'confiance_extraction': 0.0,
+            'details_extraction': []
+        }
+        
+        # Patterns pour détecter les montants en euros
+        patterns_montants = [
+            # Montant total explicite
+            r'(?:total|montant total|somme totale)[\s\w]*?:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
+            r'(?:réclamé|restitution|remboursement)[\s\w]*?:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
+            
+            # Montants CSPE spécifiques
+            r'(?:CSPE|cspe)[\s\w]*?:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
+            r'(?:contribution|taxes?)[\s\w]*?:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
+            
+            # Montants avec années
+            r'(?:année|an)\s*(\d{4})\s*:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
+            r'(\d{4})\s*:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
+            
+            # Montants génériques avec formatage français
+            r'([0-9]\s*[0-9]*\s*[0-9]+[,.]?[0-9]*)\s*(?:€|euros?|EUR)',
+        ]
+        
+        montants_bruts = []
+        montants_par_annee = {}
+        
+        # Extraction avec chaque pattern
+        for i, pattern in enumerate(patterns_montants):
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                try:
+                    if i < 4:  # Patterns pour montant total
+                        montant_str = match.group(1)
+                        montant = self._parse_montant_francais(montant_str)
+                        if montant > 0:
+                            montants_bruts.append({
+                                'montant': montant,
+                                'type': 'total',
+                                'texte_original': match.group(0),
+                                'pattern': i
+                            })
+                            montants_info['details_extraction'].append(f"Montant total détecté: {montant:,.2f} € ({match.group(0).strip()})")
+                    
+                    elif i < 6:  # Patterns avec années
+                        if len(match.groups()) >= 2:
+                            annee = int(match.group(1))
+                            montant_str = match.group(2)
+                            montant = self._parse_montant_francais(montant_str)
+                            if montant > 0 and 2009 <= annee <= 2025:
+                                montants_par_annee[annee] = montant
+                                montants_info['details_extraction'].append(f"Année {annee}: {montant:,.2f} €")
+                    
+                    else:  # Patterns génériques
+                        montant_str = match.group(1)
+                        montant = self._parse_montant_francais(montant_str)
+                        if montant > 100:  # Filtrer les petits montants probablement non pertinents
+                            montants_bruts.append({
+                                'montant': montant,
+                                'type': 'generique',
+                                'texte_original': match.group(0),
+                                'pattern': i
+                            })
+                            
+                except (ValueError, IndexError):
+                    continue
+        
+        # Détection des totaux explicites dans le texte
+        total_patterns = [
+            r'TOTAL\s*(?:RÉCLAMÉ|DEMANDÉ)?\s*:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?)',
+            r'MONTANT\s*TOTAL\s*:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?)',
+            r'RESTITUTION\s*(?:DE)?\s*:?\s*([0-9\s]+[,.]?[0-9]*)\s*(?:€|euros?)'
+        ]
+        
+        for pattern in total_patterns:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                try:
+                    montant = self._parse_montant_francais(match.group(1))
+                    if montant > 0:
+                        montants_bruts.append({
+                            'montant': montant,
+                            'type': 'total_explicite',
+                            'texte_original': match.group(0),
+                            'pattern': 'total'
+                        })
+                        montants_info['details_extraction'].append(f"Total explicite: {montant:,.2f} € ({match.group(0).strip()})")
+                except ValueError:
+                    continue
+        
+        # Logique de sélection du montant principal
+        montant_final = 0.0
+        confiance = 0.0
+        
+        # Priorité 1: Total explicite
+        totaux_explicites = [m for m in montants_bruts if m['type'] == 'total_explicite']
+        if totaux_explicites:
+            montant_final = max(totaux_explicites, key=lambda x: x['montant'])['montant']
+            confiance = 0.95
+            montants_info['details_extraction'].append(f"✅ Sélection: Total explicite ({montant_final:,.2f} €)")
+        
+        # Priorité 2: Somme des montants par année
+        elif montants_par_annee:
+            montant_final = sum(montants_par_annee.values())
+            confiance = 0.90
+            montants_info['details_extraction'].append(f"✅ Sélection: Somme par années ({montant_final:,.2f} €)")
+        
+        # Priorité 3: Montant total détecté
+        elif montants_bruts:
+            totaux = [m for m in montants_bruts if m['type'] == 'total']
+            if totaux:
+                montant_final = max(totaux, key=lambda x: x['montant'])['montant']
+                confiance = 0.80
+                montants_info['details_extraction'].append(f"✅ Sélection: Montant total détecté ({montant_final:,.2f} €)")
+            else:
+                # Prendre le plus gros montant générique
+                montant_final = max(montants_bruts, key=lambda x: x['montant'])['montant']
+                confiance = 0.60
+                montants_info['details_extraction'].append(f"⚠️ Sélection: Plus gros montant détecté ({montant_final:,.2f} €)")
+        
+        # Remplissage final
+        montants_info.update({
+            'montant_total': montant_final,
+            'montants_detectes': [m['montant'] for m in montants_bruts],
+            'montants_par_annee': montants_par_annee,
+            'confiance_extraction': confiance
+        })
+        
+        return montants_info
+
+    def _parse_montant_francais(self, montant_str: str) -> float:
+        """Parse un montant au format français (avec espaces et virgules)"""
+        try:
+            # Nettoyer la chaîne
+            montant_clean = re.sub(r'[^\d,.]', '', montant_str.strip())
+            
+            # Gérer les formats français
+            if ',' in montant_clean and '.' in montant_clean:
+                # Format: 1.234,56
+                if montant_clean.rindex(',') > montant_clean.rindex('.'):
+                    montant_clean = montant_clean.replace('.', '').replace(',', '.')
+                else:
+                    # Format: 1,234.56
+                    montant_clean = montant_clean.replace(',', '')
+            elif ',' in montant_clean:
+                # Format: 1234,56 ou 1,234
+                if len(montant_clean.split(',')[1]) <= 2:
+                    # C'est probablement des centimes
+                    montant_clean = montant_clean.replace(',', '.')
+                else:
+                    # C'est probablement un séparateur de milliers
+                    montant_clean = montant_clean.replace(',', '')
+            
+            return float(montant_clean)
+        except (ValueError, AttributeError):
+            return 0.0
 
     def extract_date(self, text: str) -> datetime:
         """Extrait une date du texte"""
@@ -369,12 +537,16 @@ Jean-Pierre MARTIN
             }
 
     def analyze_text(self, text: str) -> dict:
-        """Analyse complète du texte selon les 4 critères CSPE"""
+        """Analyse complète du texte selon les 4 critères CSPE + extraction montants"""
+        # Extraction automatique des montants
+        montants_info = self.extract_montants_cspe(text)
+        
         return {
             'period_check': self.check_period(text),
             'delay_check': self.check_delay(text),
             'demandeur_quality': self.check_demandeur_quality(text),
             'pieces_jointes': self.check_pieces_jointes(text),
+            'montants_extraction': montants_info,  # Nouvelle section
             'date_extraction': self.extract_date(text),
             'text_length': len(text),
             'contains_cspe': 'CSPE' in text.upper(),
