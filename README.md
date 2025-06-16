@@ -1,12 +1,6 @@
-<<<<<<< HEAD
 # 🏛️ Assistant CSPE - CE
 
 ## **Système de Classification Intelligente des Dossiers CSPE avec LLM**
-=======
-# CSPE Assistant - Assistant CSPE - CE
-
-Système d'aide à l'instruction des réclamations CSPE (Contribution au Service Public de l'Électricité).
->>>>>>> 15b98ceda1ea70647e4b8b8c1e3cf40d2d4c21ab
 
 Développé par **David Michel-Larrieux** - Data Scientist en apprentissage  
 **Poste visé :** Data Scientist en apprentissage - Cellule IA - CE
@@ -15,7 +9,7 @@ Développé par **David Michel-Larrieux** - Data Scientist en apprentissage
 
 ## 🎯 **Vue d'ensemble**
 
-Ce projet présente un système de classification automatique des dossiers CSPE (Contribution au Service Public de l'Électricité) utilisant des techniques d'Intelligence Artificielle modernes.
+Ce projet présente un système de classification automatique des dossiers CSPE (Contribution au Service Public de l'Électricité) utilisant des techniques d'Intelligence Artificielle modernes, notamment le LLM Mistral 7B déployé localement.
 
 ### **Problématique Résolue**
 - **10 000 dossiers CSPE** à classifier manuellement par an
@@ -33,21 +27,27 @@ Ce projet présente un système de classification automatique des dossiers CSPE 
 
 ## 🚀 **Démarrage Rapide**
 
-
-### **🏭 Installation complète**
+### **🎯 Installation Simple (Recommandé pour la démo)**
 
 ```bash
 # 1. Cloner le projet
 git clone https://github.com/votre-repo/assistant-cspe
 cd assistant-cspe
 
-# 2. Installer toutes les dépendances
+# 2. Lancer le mode démo
+python launch_demo.py --mode=demo
+```
+
+### **🏭 Installation Complète**
+
+```bash
+# 1. Installer les dépendances
 pip install -r requirements.txt
 
-# 3. Lancer le diagnostic système
+# 2. Lancer le diagnostic système
 python launch_demo.py --mode=diagnostic
 
-# 4. Lancer l'application complète
+# 3. Lancer l'application complète
 python launch_demo.py --mode=full
 ```
 
@@ -138,17 +138,6 @@ assistant-cspe/
    - Validation croisée des informations
    - Signalement des manques avec suggestions
 
-### **Exemple d'Analyse Automatique**
-
-```
-📄 Document: Requête CSPE n°2025-0156
-👤 Demandeur: Jean MARTIN (Particulier)
-📅 Délai: 28 jours (✅ Respecté)
-💰 Montant: 1,247.50 €
-🎯 Classification: RECEVABLE (94% confiance)
-⏱️ Temps traitement: 0.73 secondes
-```
-
 ---
 
 ## 📊 **Performance & Métriques**
@@ -164,12 +153,6 @@ assistant-cspe/
 - **Heures libérées :** 2,000h/an pour analyse complexe
 - **Économies annuelles :** 200k€
 - **ROI sur 3 ans :** 400%
-
-### **📈 Métriques Qualité**
-- **Faux positifs :** 3.9% (critique pour IRRECEVABLE)
-- **Faux négatifs :** 6.2%
-- **F1-Score :** 94.0%
-- **Cohérence inter-agents :** +45%
 
 ---
 
@@ -218,12 +201,6 @@ python -m pytest tests/test_integration.py
 python tests/validation.py
 ```
 
-### **Jeux de Test CSPE**
-- **Dossiers recevables :** Tous critères respectés
-- **Délais dépassés :** Irrecevabilité automatique
-- **Pièces manquantes :** Détection et signalement
-- **Cas complexes :** Escalade vers expert humain
-
 ---
 
 ## 🚀 **Roadmap et Évolutions**
@@ -243,41 +220,8 @@ python tests/validation.py
 - Monitoring temps réel
 - Support utilisateurs 24/7
 
-### **Évolutions Futures**
-- **Extension autres contentieux** (urbanisme, fonction publique)
-- **RAG avec jurisprudence** pour aide à la décision
-- **IA conversationnelle** pour assistant juridique
-- **Analytics prédictifs** sur tendances contentieux
-
 ---
 
-## 🔗 **Liens et Resources**
-
-### **🌐 Démonstration Live**
-- **Interface démo :** `http://localhost:8501` (après lancement)
-- **API documentation :** `http://localhost:8501/docs`
-- **Monitoring :** `http://localhost:8501/health`
-
-### **📚 Documentation Technique**
-- [Guide d'installation complète](docs/installation.md)
-- [Architecture détaillée](docs/architecture.md)
-- [API Reference](docs/api-reference.md)
-- [Guide utilisateur](docs/user-guide.md)
-
-<<<<<<< HEAD
-### **🤝 Support et Contact**
-- **Email :** david.michel-larrieux@conseil-etat.fr
-- **LinkedIn :** [David Michel-Larrieux](https://linkedin.com/in/david-michel-larrieux)
-- **GitHub :** [Profil développeur](https://github.com/david-michel-larrieux)
-=======
-- Le système utilise uniquement des modèles LLM locaux (Mistral via Ollama)
-- Les données restent sur site
-- Conformité avec les normes de sécurité de l'organisme
->>>>>>> 15b98ceda1ea70647e4b8b8c1e3cf40d2d4c21ab
-
----
-
-<<<<<<< HEAD
 ## ⚠️ **Notes Importantes**
 
 ### **🔒 Sécurité et Confidentialité**
@@ -297,7 +241,7 @@ python tests/validation.py
 - **Python :** 3.8+ (recommandé: 3.10+)
 - **RAM :** 8GB minimum (16GB recommandé)
 - **Disque :** 10GB d'espace libre
-- **Réseau :** Connexion pour téléchargement initial
+- **GPU :** Optionnel mais recommandé pour Mistral
 
 ---
 
@@ -311,20 +255,15 @@ python tests/validation.py
 - **🎯 Spécialités :** NLP, LLM, Classification automatique, Service public
 - **🏆 Projets :** TIRESIAS MUSI/GRAPH, AI Hotel Optimizer et maintenant Assistant CSPE
 
-*"Après 20 ans dans le management hôtelier, je mets mes compétences au service de l'intérêt général en développant des solutions IA responsables pour transformer l'efficacité du service public."*
-
 ---
 
 ## 📜 **Licence et Usage**
 
-Ce projet est développé dans le cadre d'une candidature pour un poste d'apprentissage. Il démontre les compétences techniques et la vision éthique nécessaires pour développer des solutions IA au service de l'intérêt général.
+Ce projet est développé dans le cadre d'une candidature pour un poste d'apprentissage au CE. Il démontre les compétences techniques et la vision éthique nécessaires pour développer des solutions IA au service de l'intérêt général.
 
 **Usage autorisé :** Évaluation, formation, et adaptation pour les besoins du service public français.
 
 ---
 
-**🏛️ Conseil d'État - Cellule IA et Innovation**  
+**🏛️ CE - Cellule IA et Innovation**  
 *L'IA au service de l'État de droit*
-=======
-Pour toute question ou problème, contacter le support technique
->>>>>>> 15b98ceda1ea70647e4b8b8c1e3cf40d2d4c21ab

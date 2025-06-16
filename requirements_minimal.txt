@@ -1,0 +1,37 @@
+# Dépendances minimales pour faire fonctionner l'application
+# Version allégée pour éviter les conflits
+
+# Interface utilisateur
+streamlit==1.29.0
+
+# Données et analyse
+pandas==2.1.0
+numpy==1.24.3
+
+# Visualisations
+plotly==5.17.0
+
+# Base de données
+sqlalchemy==2.0.23
+
+# Traitement de documents
+PyPDF2==3.0.1
+pillow==10.0.0
+
+# Date et temps
+python-dateutil==2.8.2
+
+# Variables d'environnement
+python-dotenv==1.0.0
+
+# API
+requests==2.31.0
+
+# LLM (optionnel mais recommandé)
+ollama==0.1.7
+
+# Export PDF (optionnel)
+fpdf2==2.7.6
+
+# Support Excel (optionnel)
+openpyxl==3.1.2
