@@ -74,21 +74,55 @@ def main():
     # Lancement
     print("\n🚀 LANCEMENT DE LA DÉMO...")
     print("📱 L'interface va s'ouvrir dans votre navigateur")
-    print("🌐 URL: http://localhost:8501")
     print("\n⚠️ IMPORTANT: Gardez cette fenêtre ouverte pendant la démo")
     print("✋ Pour arrêter: Ctrl+C dans cette fenêtre")
     print("\n" + "="*60)
     
     try:
-        # Lancement sécurisé
-        subprocess.run([
-            sys.executable, '-m', 'streamlit', 'run',
-            'demo_entretien.py',
-            '--server.port', '8501',
-            '--server.address', '0.0.0.0',
-            '--browser.gatherUsageStats', 'false',
-            '--server.headless', 'false'
-        ])
+        # Lancement sécurisé avec gestion des ports
+        ports = [8501, 8502, 8503]  # Liste des ports à tester
+        for port in ports:
+            try:
+                print(f"\nEssayage le port {port}...")
+                # Lancement sécurisé
+                print("\nDémarrage du serveur Streamlit...")
+                
+                # Ajout de redirection de la sortie pour voir les logs
+                with open('streamlit.log', 'w') as log_file:
+                    process = subprocess.Popen([
+                        sys.executable, '-m', 'streamlit', 'run',
+                        'demo_entretien.py',
+                        '--server.port', str(port),
+                        '--server.address', '0.0.0.0',
+                        '--browser.gatherUsageStats', 'false',
+                        '--server.headless', 'false'
+                    ],
+                    stdout=log_file,
+                    stderr=log_file
+                    )
+                    
+                    # Attendre quelques secondes pour que le serveur démarre
+                    print("\nAttente du démarrage du serveur (5 secondes)...")
+                    import time
+                    time.sleep(5)
+                    
+                    # Vérifier si le processus est toujours en cours
+                    if process.poll() is None:
+                        print(f"\n🌐 URL: http://localhost:{port}")
+                        print("\nServeur démarré avec succès !")
+                        break  # Si le serveur démarre, on sort de la boucle
+                    else:
+                        print(f"❌ Le serveur n'a pas démarré sur le port {port}")
+                        continue
+            except subprocess.CalledProcessError as e:
+                if "Port" in str(e):
+                    print(f"⚠️ Le port {port} est déjà utilisé, essayons le suivant...")
+                    continue
+                else:
+                    raise
+            except Exception as e:
+                print(f"❌ Erreur lors du démarrage sur le port {port}: {e}")
+                continue
     except KeyboardInterrupt:
         print("\n\n✅ Démo fermée par l'utilisateur")
         print("🎯 Bonne chance pour votre entretien !")

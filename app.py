@@ -7,6 +7,8 @@ import io
 import pandas as pd
 from datetime import datetime
 import json
+import re
+import time
 
 # Configuration de la page
 st.set_page_config(
@@ -17,87 +19,144 @@ st.set_page_config(
 )
 
 def analyze_with_llm(text):
-    """Analyse du texte avec LLM Mistral ou mode démo"""
+    """Analyse du texte avec LLM Mistral ou mode démo - VERSION CORRIGÉE"""
     try:
         # Essayer d'utiliser Ollama si disponible
         try:
             import ollama
             
-            prompt = f"""
-            Tu es un expert juridique spécialisé dans l'analyse des dossiers CSPE.
-            Analyse ce document et détermine s'il respecte les 4 critères :
-            
-            DOCUMENT: {text[:2000]}
-            
-            CRITÈRES:
-            1. Délai de recours (< 2 mois)
-            2. Qualité du demandeur 
-            3. Objet valide (contestation CSPE)
-            4. Pièces justificatives complètes
-            
-            RÉPONSE STRUCTURÉE:
-            - Classification: [RECEVABLE/IRRECEVABLE]
-            - Critère défaillant: [1,2,3,4 ou AUCUN]
-            - Confiance: [0-100%]
-            - Justification: [Explication courte]
-            """
+            prompt = f"""Tu es un expert juridique spécialisé dans l'analyse des dossiers CSPE.
+Analyse ce document et détermine s'il respecte les 4 critères.
+
+DOCUMENT: {text[:2000]}
+
+CRITÈRES:
+1. Délai de recours (< 2 mois)
+2. Qualité du demandeur 
+3. Objet valide (contestation CSPE)
+4. Pièces justificatives complètes
+
+RÉPONSE AU FORMAT JSON UNIQUEMENT:
+{{
+    "classification": "RECEVABLE ou IRRECEVABLE ou INSTRUCTION",
+    "critere_defaillant": 1 ou 2 ou 3 ou 4 ou null,
+    "confiance": 85,
+    "justification": "explication courte"
+}}"""
             
             response = ollama.chat(model='mistral:7b', messages=[
                 {'role': 'user', 'content': prompt}
             ])
             
-            # Parser la réponse (version simplifiée)
-            response_text = response['message']['content']
+            # Parser la réponse JSON
+            response_text = response['message']['content'].strip()
             
-            # Analyse simple du contenu pour déterminer la classification
-            if "recevable" in response_text.lower() and "irrecevable" not in response_text.lower():
-                classification = "RECEVABLE"
-            elif "irrecevable" in response_text.lower():
-                classification = "IRRECEVABLE"
-            else:
-                classification = "INSTRUCTION"
-            
-            return {
-                'decision': classification,
-                'criteria': {
-                    'Délai de recours': {'status': '✅', 'details': 'Respecté (28 jours)'},
-                    'Qualité du demandeur': {'status': '✅', 'details': 'Personne concernée'},
-                    'Objet valide': {'status': '✅', 'details': 'Contestation CSPE'},
-                    'Pièces justificatives': {'status': '✅', 'details': 'Complètes'}
-                },
-                'observations': response_text[:200],
-                'analysis_by_company': {
-                    'EDF': {'2010': 1500, '2011': 1800, '2012': 2000}
-                },
-                'confidence_score': 0.94,
-                'processing_time': 0.73
-            }
+            # Essayer de parser JSON d'abord
+            try:
+                llm_result = json.loads(response_text)
+                
+                # Convertir au format attendu
+                classification = llm_result.get('classification', 'INSTRUCTION')
+                confidence = llm_result.get('confiance', 75) / 100.0
+                justification = llm_result.get('justification', 'Analyse LLM')
+                
+                # Générer les critères basés sur la classification
+                if classification == 'RECEVABLE':
+                    criteres = {
+                        'Délai de recours': {'status': '✅', 'details': 'Respecté selon LLM'},
+                        'Qualité du demandeur': {'status': '✅', 'details': 'Valide selon LLM'},
+                        'Objet valide': {'status': '✅', 'details': 'Contestation CSPE'},
+                        'Pièces justificatives': {'status': '✅', 'details': 'Complètes selon LLM'}
+                    }
+                else:
+                    criteres = {
+                        'Délai de recours': {'status': '❌' if llm_result.get('critere_defaillant') == 1 else '✅', 'details': 'Analysé par LLM'},
+                        'Qualité du demandeur': {'status': '❌' if llm_result.get('critere_defaillant') == 2 else '✅', 'details': 'Analysé par LLM'},
+                        'Objet valide': {'status': '❌' if llm_result.get('critere_defaillant') == 3 else '✅', 'details': 'Analysé par LLM'},
+                        'Pièces justificatives': {'status': '❌' if llm_result.get('critere_defaillant') == 4 else '✅', 'details': 'Analysé par LLM'}
+                    }
+                
+                return {
+                    'decision': classification,
+                    'criteria': criteres,
+                    'observations': justification,
+                    'analysis_by_company': {'LLM Analysis': {'2024': 1000.0}},
+                    'confidence_score': confidence,
+                    'processing_time': 0.73,
+                    'entities': {'source': 'Mistral LLM', 'model': 'mistral:7b'}
+                }
+                
+            except json.JSONDecodeError:
+                # Si le JSON parsing échoue, faire une analyse simple du texte
+                st.warning("⚠️ Réponse LLM non-JSON, analyse textuelle...")
+                
+                # Analyse simple du contenu pour déterminer la classification
+                response_lower = response_text.lower()
+                if "recevable" in response_lower and "irrecevable" not in response_lower:
+                    classification = "RECEVABLE"
+                    confidence = 0.85
+                elif "irrecevable" in response_lower:
+                    classification = "IRRECEVABLE" 
+                    confidence = 0.80
+                else:
+                    classification = "INSTRUCTION"
+                    confidence = 0.70
+                
+                return {
+                    'decision': classification,
+                    'criteria': {
+                        'Délai de recours': {'status': '✅', 'details': 'Analysé par LLM (format libre)'},
+                        'Qualité du demandeur': {'status': '✅', 'details': 'Analysé par LLM (format libre)'},
+                        'Objet valide': {'status': '✅', 'details': 'Contestation CSPE'},
+                        'Pièces justificatives': {'status': '✅', 'details': 'Analysé par LLM (format libre)'}
+                    },
+                    'observations': f'Analyse LLM (format libre): {response_text[:200]}...',
+                    'analysis_by_company': {'LLM Analysis': {'2024': 1000.0}},
+                    'confidence_score': confidence,
+                    'processing_time': 0.73,
+                    'entities': {'source': 'Mistral LLM - Format libre', 'response_preview': response_text[:100]}
+                }
             
         except ImportError:
-            # Mode démo si Ollama n'est pas disponible
+            # Ollama non disponible
+            st.info("ℹ️ Service LLM non disponible - Mode démo activé")
             return get_demo_analysis(text)
+        except Exception as e:
+            # Erreur Ollama
+            st.warning(f"⚠️ Erreur LLM: {str(e)} - Basculement mode démo")
+            return get_demo_analysis(text, error=str(e))
             
     except Exception as e:
-        # Fallback pour la démo
+        # Fallback complet
+        st.error(f"❌ Erreur critique analyse: {str(e)}")
         return get_demo_analysis(text, error=str(e))
 
 def get_demo_analysis(text="", error=None):
-    """Retourne une analyse simulée pour la démonstration"""
+    """Retourne une analyse simulée pour la démonstration - VERSION ROBUSTE CORRIGÉE"""
     
-    # Analyse intelligente du texte pour une démo réaliste
+    # S'assurer que text est une string
+    if not isinstance(text, str):
+        text = str(text) if text else ""
+    
     text_lower = text.lower()
     
-    # Extraction d'informations réelles du document
+    # Analyse intelligente du texte pour une démo réaliste
     demandeur_detecte = "Non identifié"
     if "martin" in text_lower:
-        demandeur_detecte = "MARTIN"
+        demandeur_detecte = "MARTIN Jean"
     elif "dupont" in text_lower:
         demandeur_detecte = "DUPONT" 
+    elif "dubois" in text_lower:
+        demandeur_detecte = "DUBOIS Sophie"
     elif "société" in text_lower and "industrielle" in text_lower:
         demandeur_detecte = "SOCIÉTÉ INDUSTRIELLE"
+    elif any(name in text_lower for name in ["monsieur", "madame", "mr", "mme"]):
+        # Essayer d'extraire un nom après ces titres
+        name_match = re.search(r'(monsieur|madame|mr|mme)\s+([a-zA-Z]+(?:\s+[a-zA-Z]+)?)', text_lower)
+        if name_match:
+            demandeur_detecte = name_match.group(2).title()
     
     # Détection des dates pour le délai
-    import re
     dates_pattern = r'(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})'
     dates_found = re.findall(dates_pattern, text)
     
@@ -107,11 +166,6 @@ def get_demo_analysis(text="", error=None):
     if len(dates_found) >= 2:
         try:
             # Supposer première date = décision, dernière = réclamation
-            decision_date = f"{dates_found[0][0]}/{dates_found[0][1]}/{dates_found[0][2]}"
-            reclamation_date = f"{dates_found[-1][0]}/{dates_found[-1][1]}/{dates_found[-1][2]}"
-            
-            # Calcul approximatif des jours
-            from datetime import datetime
             d1 = datetime(int(dates_found[0][2]), int(dates_found[0][1]), int(dates_found[0][0]))
             d2 = datetime(int(dates_found[-1][2]), int(dates_found[-1][1]), int(dates_found[-1][0]))
             
@@ -208,9 +262,9 @@ def get_demo_analysis(text="", error=None):
         observations = f'Dossier probablement irrecevable - Critères insuffisants. Demandeur: {demandeur_detecte}'
     
     if error:
-        observations += f' [Mode démo - LLM non disponible]'
+        observations += f' [Mode démo - Erreur: {str(error)[:50]}...]'
     
-    # Génération des données par société/période
+    # Génération des données par société/période - TOUJOURS un dict
     analysis_by_company = {}
     if montant_principal > 0:
         if 'edf' in text_lower:
@@ -230,9 +284,17 @@ def get_demo_analysis(text="", error=None):
                 '2011': round(montant_principal * 0.35, 2),
                 '2012': round(montant_principal * 0.4, 2)
             }
+    else:
+        # Valeurs par défaut si pas de montant détecté
+        analysis_by_company['Estimation'] = {
+            '2010': 500.0,
+            '2011': 750.0,
+            '2012': 600.0
+        }
     
+    # RETOUR GARANTI avec toutes les clés requises
     return {
-        'decision': classification,
+        'decision': classification,  # CLÉ OBLIGATOIRE
         'criteria': {
             'Délai de recours': {'status': delai_status, 'details': delai_details},
             'Qualité du demandeur': {'status': demandeur_status, 'details': demandeur_details},
@@ -240,18 +302,20 @@ def get_demo_analysis(text="", error=None):
             'Pièces justificatives': {'status': pieces_status, 'details': pieces_details}
         },
         'observations': observations,
-        'analysis_by_company': analysis_by_company,
+        'analysis_by_company': analysis_by_company,  # TOUJOURS un dict
         'confidence_score': confidence,
         'processing_time': 0.73,
         'entities': {
             'demandeur': demandeur_detecte,
             'montant_total': montant_principal,
             'dates_detectees': len(dates_found),
-            'pieces_mentionnees': pieces_found
+            'pieces_mentionnees': pieces_found,
+            'mode': 'demo_analysis'
         }
     }
 
 def main():
+    """Application principale - VERSION CORRIGÉE"""
     try:
         # Chargement des variables d'environnement
         load_dotenv()
@@ -279,13 +343,23 @@ def main():
         
         # Fonction pour afficher les résultats d'analyse
         def display_analysis_results(results):
+            """Affiche les résultats d'analyse - VERSION SÉCURISÉE"""
             st.header("📊 Résultats d'Analyse")
+            
+            # Vérification de sécurité
+            if not isinstance(results, dict):
+                st.error("❌ Erreur: résultats invalides")
+                return
+            
+            if 'decision' not in results:
+                st.error("❌ Erreur: classification manquante")
+                return
             
             # Synthèse
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                # Décision
+                # Décision avec vérification
                 decision = results.get('decision', 'INSTRUCTION')
                 if decision == 'RECEVABLE':
                     st.success("✅ RECEVABLE")
@@ -306,10 +380,10 @@ def main():
             
             # Détail des critères
             st.subheader("🔍 Analyse des Critères")
-            if 'criteria' in results:
+            if 'criteria' in results and results['criteria']:
                 for criterion, details in results['criteria'].items():
-                    with st.expander(f"{details['status']} {criterion}"):
-                        st.write(details['details'])
+                    with st.expander(f"{details.get('status', '?')} {criterion}"):
+                        st.write(details.get('details', 'Détail non disponible'))
             
             # Détail par société/période
             if 'analysis_by_company' in results and results['analysis_by_company']:
@@ -430,7 +504,7 @@ Jean MARTIN"""
                         
                         analyze_button = st.form_submit_button("🔍 ANALYSER LE DOSSIER", type="primary")
                     
-                    # IMPORTANT: Traitement en dehors du formulaire pour éviter l'erreur Streamlit
+                    # Traitement en dehors du formulaire pour éviter l'erreur Streamlit
                     if analyze_button:
                         with st.spinner("🤖 Analyse en cours avec IA..."):
                             try:
@@ -444,8 +518,30 @@ Jean MARTIN"""
                                         except Exception as e:
                                             st.warning(f"⚠️ Erreur lecture {file.name}: {str(e)}")
                                 
-                                # Analyse avec LLM ou mode démo
-                                results = analyze_with_llm(combined_text)
+                                # ANALYSE AVEC GESTION D'ERREUR ROBUSTE
+                                try:
+                                    results = analyze_with_llm(combined_text)
+                                    
+                                    # VÉRIFICATION CRITIQUE de l'intégrité des résultats
+                                    if not isinstance(results, dict):
+                                        raise ValueError("Résultats invalides - pas un dictionnaire")
+                                    
+                                    if 'decision' not in results:
+                                        raise ValueError("Clé 'decision' manquante dans les résultats")
+                                    
+                                    if not isinstance(results['decision'], str):
+                                        raise ValueError(f"decision invalide: {type(results['decision'])}")
+                                    
+                                    # Validation de la classification
+                                    valid_decisions = ['RECEVABLE', 'IRRECEVABLE', 'INSTRUCTION']
+                                    if results['decision'] not in valid_decisions:
+                                        st.warning(f"⚠️ Classification inattendue: {results['decision']}")
+                                        results['decision'] = 'INSTRUCTION'  # Valeur par défaut sûre
+                                    
+                                except Exception as analysis_error:
+                                    st.error(f"❌ Erreur dans l'analyse: {str(analysis_error)}")
+                                    # Fallback d'urgence
+                                    results = get_demo_analysis(combined_text, error=str(analysis_error))
                                 
                                 # Préparation des données pour la base
                                 dossier_data = {
@@ -456,8 +552,8 @@ Jean MARTIN"""
                                     'periode_debut': periode_debut,
                                     'periode_fin': periode_fin,
                                     'montant_reclame': montant_reclame,
-                                    'statut': results['decision'],
-                                    'motif_irrecevabilite': None if results['decision'] == 'RECEVABLE' else 'Critères non respectés',
+                                    'statut': results.get('decision', 'INSTRUCTION'),  # Utilisation sécurisée
+                                    'motif_irrecevabilite': None if results.get('decision') == 'RECEVABLE' else 'Critères non respectés',
                                     'confiance_analyse': results.get('confidence_score', 0.0),
                                     'analyste': analyste,
                                     'commentaires': results.get('observations', '')
@@ -468,13 +564,14 @@ Jean MARTIN"""
                                     dossier_id = db_manager.add_dossier(dossier_data)
                                     
                                     # Sauvegarde des critères
-                                    for critere, details in results['criteria'].items():
-                                        db_manager.add_critere({
-                                            'dossier_id': dossier_id,
-                                            'critere': critere,
-                                            'statut': details['status'] == '✅',
-                                            'detail': details['details']
-                                        })
+                                    if 'criteria' in results and results['criteria']:
+                                        for critere, details in results['criteria'].items():
+                                            db_manager.add_critere({
+                                                'dossier_id': dossier_id,
+                                                'critere': critere,
+                                                'statut': details.get('status', '⚠️') == '✅',
+                                                'detail': details.get('details', 'Détail non disponible')
+                                            })
                                     
                                     st.session_state.current_dossier_id = dossier_id
                                     
@@ -486,7 +583,7 @@ Jean MARTIN"""
                                 st.success("✅ Analyse terminée !")
                                 display_analysis_results(results)
                                 
-                                # Boutons d'export - EN DEHORS du formulaire
+                                # Boutons d'export
                                 st.markdown("---")
                                 st.subheader("📄 Export des résultats")
                                 
@@ -496,10 +593,10 @@ Jean MARTIN"""
                                     csv_data = {
                                         'Numéro': [numero_dossier],
                                         'Demandeur': [demandeur],
-                                        'Classification': [results['decision']],
+                                        'Classification': [results.get('decision', 'INSTRUCTION')],
                                         'Confiance': [f"{results.get('confidence_score', 0):.1%}"],
                                         'Date_analyse': [datetime.now().strftime('%Y-%m-%d %H:%M')],
-                                        'Criteres': [', '.join([f"{k}: {v['status']}" for k, v in results['criteria'].items()])]
+                                        'Criteres': [', '.join([f"{k}: {v.get('status', '?')}" for k, v in results.get('criteria', {}).items()])]
                                     }
                                     
                                     df = pd.DataFrame(csv_data)
@@ -522,13 +619,13 @@ Numéro: {numero_dossier}
 Demandeur: {demandeur}
 Date d'analyse: {datetime.now().strftime('%d/%m/%Y %H:%M')}
 
-CLASSIFICATION: {results['decision']}
+CLASSIFICATION: {results.get('decision', 'INSTRUCTION')}
 CONFIANCE: {results.get('confidence_score', 0):.1%}
 
 CRITÈRES:
 """
-                                    for critere, details in results['criteria'].items():
-                                        rapport_text += f"- {critere}: {details['status']} ({details['details']})\n"
+                                    for critere, details in results.get('criteria', {}).items():
+                                        rapport_text += f"- {critere}: {details.get('status', '?')} ({details.get('details', 'N/A')})\n"
                                     
                                     rapport_text += f"\nOBSERVATIONS:\n{results.get('observations', 'Aucune')}"
                                     
@@ -542,11 +639,6 @@ CRITÈRES:
                                 
                             except Exception as e:
                                 handle_error(e, "Erreur lors de l'analyse du dossier")
-                                
-                                # Affichage d'une analyse de fallback
-                                st.warning("⚠️ Basculement en mode dégradé")
-                                fallback_results = get_demo_analysis(demo_text, error=str(e))
-                                display_analysis_results(fallback_results)
                                     
             except Exception as e:
                 handle_error(e, "Erreur dans l'onglet Nouvelle Analyse")
@@ -767,7 +859,7 @@ CRITÈRES:
                                             success = db_manager.update_dossier(update_data)
                                             if success:
                                                 st.success("✅ Dossier mis à jour avec succès !")
-                                                st.experimental_rerun()
+                                                st.rerun()
                                             else:
                                                 st.error("❌ Erreur lors de la mise à jour")
                                                 
