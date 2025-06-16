@@ -1,0 +1,37 @@
+# Interface utilisateur
+streamlit==1.31.0
+
+# Traitement de données
+pandas==2.1.4
+numpy==1.26.4
+python-dateutil==2.9.0
+
+# Traitement de documents
+PyPDF2==3.0.1
+python-docx==1.1.0
+python-magic==0.4.27
+pytesseract==0.3.10
+opencv-python-headless==4.9.0.80
+Pillow==10.2.0
+
+# LLM et IA
+ollama==0.1.7
+langchain==0.1.11
+sentence-transformers==2.5.1
+
+# Base de données
+sqlalchemy==2.0.27
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# API et serveur
+fastapi==0.110.0
+uvicorn==0.27.1
+python-multipart==0.0.9
+
+# Utilitaires
+python-dotenv==1.0.1
+typing-extensions==4.10.0
+loguru==0.7.2
+tqdm==4.66.1
+dateparser>=1.1.0
