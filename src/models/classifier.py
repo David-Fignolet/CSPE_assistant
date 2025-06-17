@@ -21,7 +21,7 @@ class CSPEClassifier:
             model_name: Nom du modèle Ollama à utiliser (par défaut: valeur de la config)
         """
         self.model_name = model_name or config.DEFAULT_MODEL
-        self.ollama_url = f"{config.OLLAMA_URL}/api/generate"
+        self.ollama_url = f"{config.OLLAMA_URL}/api/generate"  # Utilisation de /api/generate
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"Initialisation du classifieur avec le modèle: {self.model_name}")
     
@@ -95,23 +95,74 @@ class CSPEClassifier:
         self.logger.debug("Appel à l'API Ollama")
         
         try:
+            # Préparation du prompt complet avec les instructions
+            full_prompt = f"""
+            Tu es un expert en analyse de dossiers CSPE (Contribution au Service Public de l'Électricité).
+            Analyse le document suivant et réponds au format JSON avec les champs demandés.
+            
+            Document à analyser :
+            {prompt}
+            
+            Réponds UNIQUEMENT avec un objet JSON valide contenant ces champs :
+            - classification (RECEVABLE, IRRECEVABLE ou INSTRUCTION)
+            - score_confidence (nombre entre 0 et 1)
+            - critères_manquants (liste des critères manquants)
+            - raison (explication détaillée de la décision)
+            """
+            
+            # Préparation des données pour la requête
+            data = {
+                "model": self.model_name,
+                "prompt": full_prompt.strip(),
+                "stream": False,
+                "format": "json"
+            }
+            
+            self.logger.debug(f"Envoi de la requête à {self.ollama_url}")
+            self.logger.debug(f"Données de la requête: {json.dumps(data, ensure_ascii=False, indent=2)}")
+            
+            # Envoi de la requête
             response = requests.post(
                 self.ollama_url,
-                json={
-                    "model": self.model_name,
-                    "prompt": prompt,
-                    "stream": False,
-                    "format": "json"
-                },
+                json=data,
+                headers={"Content-Type": "application/json"},
                 timeout=60  # Timeout de 60 secondes
             )
             
+            self.logger.debug(f"Réponse reçue - Statut: {response.status_code}")
+            self.logger.debug(f"En-têtes de la réponse: {response.headers}")
+            
+            # Vérification du code de statut HTTP
             response.raise_for_status()
-            return response.json().get('response', '')
+            
+            # Traitement de la réponse
+            response_data = response.json()
+            self.logger.debug(f"Corps de la réponse: {json.dumps(response_data, ensure_ascii=False, indent=2)}")
+            
+            if 'response' not in response_data:
+                self.logger.warning("La réponse ne contient pas de clé 'response'")
+                return json.dumps({
+                    "classification": "INSTRUCTION",
+                    "score_confidence": 0.0,
+                    "critères_manquants": ["erreur_technique"],
+                    "raison": "Format de réponse inattendu du service d'IA"
+                })
+            
+            return response_data['response']
             
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"Erreur lors de l'appel à l'API Ollama: {str(e)}")
-            raise Exception(f"Erreur de communication avec le service d'IA: {str(e)}")
+            error_msg = f"Erreur lors de l'appel à l'API Ollama: {str(e)}"
+            self.logger.error(error_msg)
+            if hasattr(e, 'response') and e.response is not None:
+                self.logger.error(f"Détails de l'erreur: {e.response.text}")
+            
+            # Retourne une réponse par défaut en cas d'erreur
+            return json.dumps({
+                "classification": "INSTRUCTION",
+                "score_confidence": 0.0,
+                "critères_manquants": ["erreur_technique"],
+                "raison": f"Erreur de communication avec le service d'IA: {str(e)}"
+            })
     
     def _process_response(self, raw_response: str, metadata: Dict) -> Dict:
         """

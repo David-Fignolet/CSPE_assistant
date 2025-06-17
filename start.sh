@@ -29,13 +29,13 @@ fi
 echo "⏳ Attente démarrage des services..."
 sleep 10
 
-echo "📥 Téléchargement du modèle Mistral..."
-docker exec cspe_ollama ollama pull mistral:7b
+echo "📥 Téléchargement du modèle..."
+docker exec cspe_ollama ollama pull ${DEFAULT_MODEL:-mistral:latest}
 
 if [ $? -ne 0 ]; then
     echo "⚠️ Échec téléchargement modèle"
 else
-    echo "✅ Modèle Mistral téléchargé"
+    echo "✅ Modèle téléchargé"
 fi
 
 echo ""

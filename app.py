@@ -1,3 +1,5 @@
+from config import config
+
 def analyze_with_llm(text):
     """Analyse du texte avec LLM Mistral ou mode démo - VERSION CORRIGÉE ET ROBUSTE"""
     try:
@@ -43,7 +45,7 @@ Valeurs possibles:
             
             # Appel au modèle
             response = ollama.chat(
-                model='mistral:7b',
+                model=config.DEFAULT_MODEL,
                 messages=[{'role': 'user', 'content': prompt}],
                 options={'temperature': 0.1, 'num_predict': 500}
             )
@@ -118,7 +120,7 @@ Valeurs possibles:
                         'processing_time': 0.73,
                         'entities': {
                             'source': 'Mistral LLM',
-                            'model': 'mistral:7b',
+                            'model': config.DEFAULT_MODEL,
                             'mode': 'llm_analysis'
                         }
                     }

@@ -16,6 +16,7 @@ import json
 from datetime import datetime, date
 import plotly.express as px
 import plotly.graph_objects as go
+from src.models.classifier import CSPEClassifier
 
 # Configuration de la page
 st.set_page_config(
@@ -129,88 +130,270 @@ Pièces : 15 documents joints
 Maître LEFEBVRE, Avocat"""
     }
 
-def analyze_document_demo(text, doc_type):
-    """Analyse simulée d'un document pour la démo"""
+def get_system_prompt():
+    """Retourne le prompt système complet pour l'analyse CSPE."""
+    return """🏛️ PROMPT SYSTÈME : EXPERT INSTRUCTION DOSSIERS CSPE - CONSEIL D'ÉTAT
+
+Tu es un Instructeur Senior CSPE au Conseil d'État avec 20 ans d'expérience dans l'instruction des réclamations de remboursement de la Contribution au Service Public de l'Électricité. 
+
+🎯 MÉTHODOLOGIE D'INSTRUCTION (Processus cognitif)
+
+1. ANALYSE INITIALE (2-3 minutes) :
+- Identifier : Qui? Quand? Combien? Pourquoi?
+- Repérer les documents clés
+- Noter les dates critiques
+- Évaluer la qualité du dossier
+
+2. APPLICATION DES 4 CRITÈRES (dans l'ordre) :
+
+🚩 CRITÈRE 1 - DÉLAI DE RÉCLAMATION
+• RÈGLE : Réclamation avant le 31/12 de l'année N+1
+• Vérifier : Date réclamation ≤ 31/12 de l'année N+1
+• Si NON → IRRECEVABLE immédiat
+
+📅 CRITÈRE 2 - PÉRIODE COUVERTE (2009-2015)
+• Vérifier que TOUTES les années réclamées sont dans 2009-2015
+• Si hors période → IRRECEVABLE pour ces années
+
+⏱️ CRITÈRE 3 - PRESCRIPTION QUADRIENNALE
+• Date réclamation initiale + 4 ans = délai prescription
+• Vérifier renouvellement ou recours dans les 4 ans
+• Si non → PRESCRIPTION → IRRECEVABLE
+
+💰 CRITÈRE 4 - RÉPERCUSSION CLIENT FINAL
+• Analyser l'activité du demandeur
+• Vérifier si CSPE répercutée
+• Principe : "Qui supporte réellement la charge fiscale?"
+
+3. DÉCISION FINALE :
+- RECEVABLE : Tous critères OK
+- IRRECEVABLE : Au moins 1 critère non respecté
+- INSTRUCTION COMPLÉMENTAIRE : Doutes sérieux nécessitant vérification
+
+Réponds au format JSON avec les champs suivants :
+{
+  "classification": "RECEVABLE|IRRECEVABLE|INSTRUCTION",
+  "confidence": 0.0-1.0,
+  "criteres": {
+    "delai": {"status": "OK|KO|INCOMPLET", "details": "..."},
+    "periode": {"status": "OK|KO|PARTIEL", "details": "..."},
+    "prescription": {"status": "OK|KO|A_VERIFIER", "details": "..."},
+    "repercussion": {"status": "OK|KO|A_VERIFIER", "details": "..."}
+  },
+  "entities": {
+    "demandeur": "...",
+    "date_decision": "...",
+    "date_reclamation": "...",
+    "montant": 0.0,
+    "reference": "..."
+  },
+  "observations": "Analyse détaillée...",
+  "documents_manquants": ["..."],
+  "recommandation": "..."
+}"""
+
+def analyze_with_llm(text: str, doc_type: str = "document personnalisé") -> dict:
+    """
+    Analyse un document CSPE en utilisant le modèle LLM.
     
-    # Simulation d'une analyse réaliste basée sur le contenu
-    if "jean martin" in text.lower() and "12 avril" in text.lower() and "15 mars" in text.lower():
-        return {
-            'classification': 'RECEVABLE',
-            'confidence': 0.94,
-            'criteres': {
-                'Délai de recours': {'status': '✅', 'details': 'Respecté (28 jours vs 60 max)'},
-                'Qualité du demandeur': {'status': '✅', 'details': 'Consommateur final identifié'},
-                'Objet valide': {'status': '✅', 'details': 'Contestation CSPE explicite'},
-                'Pièces justificatives': {'status': '✅', 'details': '5 pièces jointes mentionnées'}
+    Args:
+        text: Texte du document à analyser
+        doc_type: Type de document (pour le contexte)
+        
+    Returns:
+        Dictionnaire contenant les résultats de l'analyse
+    """
+    try:
+        # Initialisation du classifieur
+        classifier = CSPEClassifier()
+        
+        # Appel au classifieur
+        result = classifier.analyze_document(text, {"doc_type": doc_type})
+        
+        # Vérifier si l'analyse a réussi
+        if result.get("status") == "error":
+            return {
+                "classification": "INSTRUCTION",
+                "confidence": 0.0,
+                "criteres": {
+                    "delai": {"status": "INCOMPLET", "details": "Erreur d'analyse"},
+                    "periode": {"status": "INCOMPLET", "details": "Erreur d'analyse"},
+                    "prescription": {"status": "INCOMPLET", "details": "Erreur d'analyse"},
+                    "repercussion": {"status": "INCOMPLET", "details": "Erreur d'analyse"}
+                },
+                "entities": {},
+                "observations": f"Erreur lors de l'analyse : {result.get('error', 'Erreur inconnue')}",
+                "documents_manquants": [],
+                "recommandation": "Veuillez vérifier le document et réessayer."
+            }
+        
+        # Mapper la classification
+        classification_map = {
+            "RECEVABLE": "RECEVABLE",
+            "IRRECEVABLE": "IRRECEVABLE"
+        }
+        classification = classification_map.get(result.get("classification", ""), "INSTRUCTION")
+        
+        # Mapper les critères
+        criteres = {
+            "delai": {
+                "status": "OK" if "délai" not in result.get("missing_criteria", []) else "KO",
+                "details": next((c for c in result.get("criteria", {}).values() if "délai" in c.get("details", "").lower()), {}).get("details", "Non spécifié")
             },
-            'observations': 'Dossier complet et bien constitué. Tous les critères sont respectés.',
-            'processing_time': 0.73,
-            'entities': {
-                'demandeur': 'Jean MARTIN',
-                'date_decision': '15/03/2025',
-                'date_reclamation': '12/04/2025',
-                'montant': 1247.50,
-                'reference': 'CRE n°2025-0156'
+            "periode": {
+                "status": "OK" if "période" not in result.get("missing_criteria", []) else "KO",
+                "details": next((c for c in result.get("criteria", {}).values() if "période" in c.get("details", "").lower()), {}).get("details", "Non spécifié")
+            },
+            "prescription": {
+                "status": "OK" if "prescription" not in result.get("missing_criteria", []) else "KO",
+                "details": next((c for c in result.get("criteria", {}).values() if "prescription" in c.get("details", "").lower()), {}).get("details", "Non spécifié")
+            },
+            "repercussion": {
+                "status": "OK" if "répercussion" not in result.get("missing_criteria", []) else "KO",
+                "details": next((c for c in result.get("criteria", {}).values() if "répercussion" in c.get("details", "").lower()), {}).get("details", "Non spécifié")
             }
         }
-    
-    elif "sophie dubois" in text.lower() and "25 avril" in text.lower() and "10 janvier" in text.lower():
+        
         return {
-            'classification': 'IRRECEVABLE',
-            'confidence': 0.88,
-            'criteres': {
-                'Délai de recours': {'status': '❌', 'details': 'Dépassé (105 jours vs 60 max)'},
-                'Qualité du demandeur': {'status': '⚠️', 'details': 'Identité à vérifier'},
-                'Objet valide': {'status': '✅', 'details': 'Contestation CSPE'},
-                'Pièces justificatives': {'status': '❌', 'details': 'Aucune pièce mentionnée'}
-            },
-            'observations': 'Dossier irrecevable pour délai dépassé. Critère 1 non respecté.',
-            'processing_time': 0.45,
-            'entities': {
-                'demandeur': 'Sophie DUBOIS',
-                'date_decision': '10/01/2025',
-                'date_reclamation': '25/04/2025',
-                'montant': None,
-                'reference': None
-            }
+            "classification": classification,
+            "confidence": result.get("confidence", 0.7),
+            "criteres": criteres,
+            "entities": result.get("entities", {}),
+            "observations": result.get("reason", "Aucune observation fournie"),
+            "documents_manquants": result.get("missing_documents", []),
+            "recommandation": "Analyse complétée avec succès.",
+            "processing_time": result.get("processing_time", 0.0)
         }
-    
-    elif "syndic" in text.lower() and "copropriété" in text.lower():
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {
-            'classification': 'INSTRUCTION',
-            'confidence': 0.67,
-            'criteres': {
-                'Délai de recours': {'status': '⚠️', 'details': 'Calcul complexe (syndic vs copropriétaires)'},
-                'Qualité du demandeur': {'status': '⚠️', 'details': 'Représentation à vérifier'},
-                'Objet valide': {'status': '✅', 'details': 'Contestation CSPE collective'},
-                'Pièces justificatives': {'status': '✅', 'details': '15 documents mentionnés'}
+            "classification": "INSTRUCTION",
+            "confidence": 0.0,
+            "criteres": {
+                "delai": {"status": "INCOMPLET", "details": "Erreur"},
+                "periode": {"status": "INCOMPLET", "details": "Erreur"},
+                "prescription": {"status": "INCOMPLET", "details": "Erreur"},
+                "repercussion": {"status": "INCOMPLET", "details": "Erreur"}
             },
-            'observations': 'Cas complexe nécessitant expertise juridique. Question de délai ambiguë.',
-            'processing_time': 1.23,
-            'entities': {
-                'demandeur': 'Syndic - Maître LEFEBVRE',
-                'date_decision': '28/02/2025',
-                'date_reclamation': '30/03/2025',
-                'montant': 47850.00,
-                'reference': 'Copropriété Les Jardins de Malakoff'
-            }
+            "entities": {},
+            "observations": f"Erreur lors de l'analyse : {str(e)}",
+            "documents_manquants": [],
+            "recommandation": "Une erreur est survenue. Veuillez réessayer.",
+            "error": str(e)
         }
+
+def process_uploaded_files(uploaded_files):
+    """Traite plusieurs fichiers téléchargés et retourne une analyse consolidée."""
+    results = []
     
-    else:
-        # Analyse générique
-        return {
-            'classification': 'INSTRUCTION',
-            'confidence': 0.75,
-            'criteres': {
-                'Délai de recours': {'status': '⚠️', 'details': 'À vérifier'},
-                'Qualité du demandeur': {'status': '⚠️', 'details': 'À vérifier'},
-                'Objet valide': {'status': '✅', 'details': 'CSPE mentionnée'},
-                'Pièces justificatives': {'status': '⚠️', 'details': 'À vérifier'}
-            },
-            'observations': 'Analyse complémentaire nécessaire.',
-            'processing_time': 0.82,
-            'entities': {}
-        }
+    for uploaded_file in uploaded_files:
+        try:
+            # Lire le contenu du fichier
+            content = uploaded_file.getvalue().decode("utf-8")
+            
+            # Analyser le document
+            analysis = analyze_with_llm(content, uploaded_file.name)
+            
+            # Ajouter les métadonnées du fichier
+            analysis['file_name'] = uploaded_file.name
+            analysis['file_size'] = len(content)
+            analysis['upload_time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            results.append(analysis)
+            
+        except Exception as e:
+            results.append({
+                'file_name': uploaded_file.name,
+                'error': str(e),
+                'status': 'ERROR'
+            })
+    
+    return results
+
+def display_batch_results(analyses):
+    """Affiche les résultats d'une analyse par lots."""
+    st.markdown("## 📊 Résultats de l'analyse par lots")
+    
+    # Statistiques globales
+    stats = {
+        'total': len(analyses),
+        'recevable': sum(1 for a in analyses if a.get('classification') == 'RECEVABLE'),
+        'irrecevable': sum(1 for a in analyses if a.get('classification') == 'IRRECEVABLE'),
+        'instruction': sum(1 for a in analyses if a.get('classification') == 'INSTRUCTION'),
+        'errors': sum(1 for a in analyses if 'error' in a)
+    }
+    
+    # Affichage des statistiques
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("📄 Documents traités", stats['total'])
+    with col2:
+        st.metric("🎯 Précision", f"{stats['recevable']} ({(stats['recevable']/stats['total']*100):.1f}%)" if stats['total'] > 0 else "0")
+    with col3:
+        st.metric("📊 Erreurs", stats['errors'])
+    with col4:
+        st.metric("👥 En révision", stats['instruction'])
+    
+    # Détails par fichier
+    st.markdown("### Détail des analyses")
+    
+    for i, analysis in enumerate(analyses, 1):
+        with st.expander(f"📄 {analysis.get('file_name', 'Sans nom')}", expanded=False):
+            if 'error' in analysis:
+                st.error(f"❌ Erreur lors de l'analyse : {analysis['error']}")
+                continue
+                
+            # Affichage des résultats
+            col1, col2 = st.columns([1, 3])
+            
+            with col1:
+                # Badge de statut
+                status_color = {
+                    'RECEVABLE': 'green',
+                    'IRRECEVABLE': 'red',
+                    'INSTRUCTION': 'orange'
+                }.get(analysis['classification'], 'gray')
+                
+                st.markdown(f"""
+                <div style='border-left: 5px solid {status_color}; padding: 0.5em; margin: 0.5em 0;'>
+                    <h4>Statut : <span style='color: {status_color};'>{analysis['classification']}</span></h4>
+                    <p>Confiance : <strong>{analysis['confidence']*100:.1f}%</strong></p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Critères
+                st.markdown("#### Critères d'évaluation")
+                for critere, details in analysis['criteres'].items():
+                    status_emoji = '✅' if details['status'] == 'OK' else '❌' if details['status'] == 'KO' else '⚠️'
+                    st.markdown(f"- {status_emoji} {critere.capitalize()}: {details['details']}")
+            
+            with col2:
+                # Entités extraites
+                if analysis.get('entities'):
+                    st.markdown("#### Entités extraites")
+                    entities = analysis['entities']
+                    if isinstance(entities, dict):
+                        for key, value in entities.items():
+                            if value:  # Ne pas afficher les champs vides
+                                st.markdown(f"- **{key.replace('_', ' ').title()}**: {value}")
+                
+                # Observations
+                if analysis.get('observations'):
+                    st.markdown("#### Observations")
+                    st.info(analysis['observations'])
+                
+                # Documents manquants
+                if analysis.get('documents_manquants'):
+                    st.markdown("#### Documents manquants")
+                    for doc in analysis['documents_manquants']:
+                        st.warning(f"⚠️ {doc}")
+                
+                # Recommandation
+                if analysis.get('recommandation'):
+                    st.markdown("#### Recommandation")
+                    st.success(analysis['recommandation'])
 
 def display_analysis_results(result):
     """Affiche les résultats d'analyse de manière professionnelle"""
@@ -347,12 +530,28 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.markdown("### 🧭 Navigation")
-        
-        demo_mode = st.selectbox(
-            "Mode de démonstration",
-            ["🔍 Classification en Direct", "📊 Performance Système", "📋 Architecture Technique"]
+        st.markdown("### 🧭 Mode d'analyse")
+        analysis_mode = st.radio(
+            "Sélectionnez le mode d'analyse :",
+            ["📄 Document unique", "📚 Lot de documents"]
         )
+        
+        st.markdown("---")
+        st.markdown("### 📤 Téléchargement")
+        
+        if analysis_mode == "📄 Document unique":
+            uploaded_file = st.file_uploader(
+                "Téléchargez un document texte à analyser",
+                type=["txt", "pdf", "docx"],
+                help="Sélectionnez un fichier contenant un document CSPE à analyser"
+            )
+        else:  # Mode lot de documents
+            uploaded_files = st.file_uploader(
+                "Téléchargez plusieurs documents à analyser",
+                type=["txt", "pdf", "docx"],
+                accept_multiple_files=True,
+                help="Sélectionnez plusieurs fichiers à analyser en lot"
+            )
         
         st.markdown("---")
         st.markdown("### ℹ️ Informations")
@@ -364,238 +563,197 @@ def main():
         **🎯 Précision :** 94.2% avec révision humaine < 85% confiance
         """)
     
-    if demo_mode == "🔍 Classification en Direct":
-        st.markdown("## 🔍 Démonstration Classification en Direct")
+    # Contenu principal
+    if analysis_mode == "📄 Document unique":
+        st.markdown("## 🔍 Analyse de document unique")
         
-        # Sélection du document
-        documents = get_documents_demo()
+        # Onglets pour le mode de sélection
+        tab1, tab2 = st.tabs(["📄 Document exemple", "📝 Saisie manuelle"])
         
-        selected_doc = st.selectbox(
-            "📄 Sélectionnez un document CSPE à analyser :",
-            list(documents.keys())
-        )
+        with tab1:
+            # Sélection du document exemple
+            documents = get_documents_demo()
+            selected_doc = st.selectbox(
+                "Sélectionnez un document CSPE à analyser :",
+                list(documents.keys())
+            )
+            document_text = documents[selected_doc]
+            doc_type = selected_doc
+        
+        with tab2:
+            # Saisie manuelle de texte
+            custom_text = st.text_area(
+                "Ou saisissez votre texte ici :",
+                height=200,
+                placeholder="Collez le contenu du document CSPE à analyser..."
+            )
+            if custom_text.strip():
+                document_text = custom_text
+                doc_type = "document personnalisé"
+        
+        # Vérifier si un fichier a été téléchargé
+        if uploaded_file is not None:
+            try:
+                document_text = uploaded_file.getvalue().decode("utf-8")
+                doc_type = uploaded_file.name
+                st.success(f"Fichier {uploaded_file.name} chargé avec succès !")
+            except Exception as e:
+                st.error(f"Erreur lors de la lecture du fichier : {str(e)}")
         
         # Affichage du document
         st.markdown("### 📄 Document à analyser")
-        document_text = documents[selected_doc]
-        
-        st.text_area(
-            "Contenu du document",
-            value=document_text,
-            height=300,
-            disabled=True
-        )
-        
-        # Bouton d'analyse
-        col1, col2, col3 = st.columns([1, 2, 1])
-        
-        with col2:
-            if st.button("🚀 ANALYSER AVEC IA", type="primary", use_container_width=True):
-                
-                # Simulation du processus d'analyse
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                
-                status_text.text("🔍 Extraction des entités...")
-                progress_bar.progress(25)
-                time.sleep(0.5)
-                
-                status_text.text("📅 Analyse des dates et délais...")
-                progress_bar.progress(50)
-                time.sleep(0.5)
-                
-                status_text.text("🤖 Classification par LLM Mistral...")
-                progress_bar.progress(75)
-                time.sleep(1.0)
-                
-                status_text.text("✅ Finalisation de l'analyse...")
-                progress_bar.progress(100)
-                time.sleep(0.3)
-                
-                # Effacer la barre de progression
-                progress_bar.empty()
-                status_text.empty()
-                
-                # Analyse du document
-                result = analyze_document_demo(document_text, selected_doc)
-                
-                # Affichage des résultats
-                st.success("🎉 Analyse terminée avec succès !")
-                
-                display_analysis_results(result)
-                
-                # Actions post-analyse
-                st.markdown("### 🛠️ Actions Disponibles")
-                
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    if result['confidence'] >= 0.85:
-                        st.button("✅ Valider Classification", type="primary")
-                    else:
-                        st.button("👤 Révision Humaine", type="secondary")
-                
-                with col2:
-                    st.button("📄 Générer Rapport", type="secondary")
-                
-                with col3:
-                    st.button("💾 Sauvegarder", type="secondary")
-    
-    elif demo_mode == "📊 Performance Système":
-        st.markdown("## 📊 Performance et Statistiques")
-        
-        show_system_performance()
-        
-        # ROI et bénéfices
-        st.markdown("### 💰 Retour sur Investissement")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("💵 Économies annuelles", "200k€", "2000h × 100€/h")
-        
-        with col2:
-            st.metric("📈 ROI 3 ans", "400%", "vs investissement 150k€")
-        
-        with col3:
-            st.metric("⏱️ Heures libérées", "2,000h/an", "Pour analyse complexe")
-        
-        # Comparaison avant/après
-        st.markdown("### ⚖️ Comparaison Avant/Après")
-        
-        comparison_data = {
-            'Métrique': [
-                'Temps par dossier',
-                'Précision',
-                'Débit journalier',
-                'Cohérence',
-                'Traçabilité'
-            ],
-            'Avant (Manuel)': [
-                '15 minutes',
-                '95%',
-                '32 dossiers',
-                'Variable',
-                'Limitée'
-            ],
-            'Après (IA)': [
-                '45 secondes',
-                '94.2%',
-                '640 dossiers',
-                'Standardisée',
-                'Complète'
-            ],
-            'Gain': [
-                '95%',
-                'Stable',
-                '2000%',
-                '✅',
-                '✅'
-            ]
-        }
-        
-        df = pd.DataFrame(comparison_data)
-        st.dataframe(df, use_container_width=True)
-    
-    elif demo_mode == "📋 Architecture Technique":
-        st.markdown("## 🏗️ Architecture Technique")
-        
-        # Pipeline de traitement
-        st.markdown("### 🔄 Pipeline de Classification")
-        
-        pipeline_steps = [
-            "📄 Upload Document",
-            "🔍 OCR & Extraction",
-            "📝 NLP & Entités", 
-            "🤖 LLM Analysis",
-            "📊 Scoring Confiance",
-            "⚖️ Classification",
-            "👤 Validation Humaine"
-        ]
-        
-        cols = st.columns(len(pipeline_steps))
-        for i, (col, step) in enumerate(zip(cols, pipeline_steps)):
-            with col:
-                st.markdown(f"**{i+1}.**")
-                st.markdown(step)
-                if i < len(pipeline_steps) - 1:
-                    st.markdown("↓")
-        
-        # Stack technique
-        st.markdown("### 🛠️ Stack Technique")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            **🤖 Intelligence Artificielle**
-            - **LLM :** Mistral 7B Instruct (local)
-            - **Framework :** LangChain + Custom Prompts
-            - **NLP :** spaCy + modèles français
-            - **OCR :** Tesseract + OpenCV
-            """)
+        if 'document_text' in locals() and document_text.strip():
+            st.text_area(
+                "Contenu du document",
+                value=document_text[:5000] + ("..." if len(document_text) > 5000 else ""),
+                height=300,
+                disabled=True,
+                key="document_display"
+            )
             
-            st.markdown("""
-            **💻 Backend & API**
-            - **Language :** Python 3.10+
-            - **Framework :** FastAPI + Uvicorn
-            - **Base données :** PostgreSQL + SQLAlchemy
-            - **Cache :** Redis (optionnel)
-            """)
-        
-        with col2:
-            st.markdown("""
-            **🎨 Interface Utilisateur**
-            - **Framework :** Streamlit
-            - **Graphiques :** Plotly + Charts
-            - **Design :** CSS custom + Responsive
-            - **Accessibilité :** RGAA compatible
-            """)
-            
-            st.markdown("""
-            **🔒 Sécurité & Déploiement**
-            - **Déploiement :** 100% on-premise
-            - **Chiffrement :** AES-256 + TLS
-            - **Logs :** Audit trail complet
-            - **Containers :** Docker + Docker Compose
-            """)
-        
-        # Avantages techniques
-        st.markdown("### ⭐ Avantages Techniques Clés")
-        
-        advantages = [
-            {
-                'title': '🇫🇷 Souveraineté Numérique',
-                'description': 'Mistral 7B français, déploiement 100% local, aucune donnée externe'
-            },
-            {
-                'title': '🔍 Transparence & Explicabilité', 
-                'description': 'Chaque décision justifiée, traçabilité complète, audit trail'
-            },
-            {
-                'title': '⚡ Performance Optimisée',
-                'description': 'Architecture modulaire, cache intelligent, traitement par lots'
-            },
-            {
-                'title': '🔧 Maintenance Simplifiée',
-                'description': 'Stack classique, documentation complète, monitoring intégré'
-            }
-        ]
-        
-        for adv in advantages:
-            with st.expander(adv['title']):
-                st.write(adv['description'])
+            # Bouton d'analyse
+            if st.button("🚀 ANALYSER AVEC IA", type="primary"):
+                with st.spinner("Analyse en cours..."):
+                    try:
+                        # Simulation du processus d'analyse
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        
+                        status_text.text("🔍 Extraction des entités...")
+                        progress_bar.progress(25)
+                        
+                        # Appel au LLM avec le prompt
+                        status_text.text("🧠 Analyse avec le modèle de langage...")
+                        result = analyze_with_llm(document_text, doc_type)
+                        progress_bar.progress(75)
+                        
+                        # Affichage des résultats
+                        status_text.text("📊 Préparation des résultats...")
+                        display_analysis_results(result)
+                        progress_bar.progress(100)
+                        
+                        # Affichage des métriques de performance
+                        with st.expander("📈 Métriques de performance"):
+                            st.metric("Temps de traitement", f"{result.get('processing_time', 0):.2f} secondes")
+                            st.metric("Confiance de la classification", f"{result.get('confidence', 0)*100:.1f}%")
+                        
+                        status_text.success("✅ Analyse terminée avec succès !")
+                        
+                    except Exception as e:
+                        st.error(f"❌ Une erreur est survenue lors de l'analyse : {str(e)}")
+                        st.exception(e)  # Pour le débogage
+                        
+                        # Réinitialiser la barre de progression en cas d'erreur
+                        progress_bar.progress(0)
+                        status_text.empty()
+        else:
+            st.info("ℹ️ Veuillez sélectionner un document exemple, saisir du texte ou télécharger un fichier.")
     
-    # Footer
-    st.markdown("---")
-    st.markdown("""
-    <div style="text-align: center; color: #6b7280; padding: 2rem;">
-        <p><strong>🏛️ Conseil d'État - Cellule IA et Innovation</strong></p>
-        <p>Système de Classification CSPE avec LLM - Version Démo Entretien</p>
-        <p>Développé par <strong>David Michel-Larrieux</strong> - Data Scientist en apprentissage</p>
-        <p>📧 Contact : david.michel-larrieux@conseil-etat.fr | 🌐 GitHub : /david-michel-larrieux</p>
-    </div>
-    """, unsafe_allow_html=True)
+    else:  # Mode lot de documents
+        st.markdown("## 📚 Analyse par lots")
+        
+        if uploaded_files:
+            st.success(f"{len(uploaded_files)} fichiers chargés avec succès !")
+            
+            if st.button("🚀 LANCER L'ANALYSE DU LOT", type="primary"):
+                with st.spinner("Analyse des documents en cours..."):
+                    try:
+                        # Initialisation de la barre de progression
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        
+                        # Traitement des fichiers
+                        status_text.text("📂 Traitement des fichiers...")
+                        analyses = []
+                        
+                        for i, uploaded_file in enumerate(uploaded_files):
+                            # Mise à jour de la progression
+                            progress = int((i + 1) / len(uploaded_files) * 100)
+                            progress_bar.progress(progress)
+                            status_text.text(f"🔍 Analyse du fichier {i+1}/{len(uploaded_files)}: {uploaded_file.name}")
+                            
+                            try:
+                                # Lire et analyser le fichier
+                                content = uploaded_file.getvalue().decode("utf-8")
+                                analysis = analyze_with_llm(content, uploaded_file.name)
+                                analysis['file_name'] = uploaded_file.name
+                                analysis['file_size'] = len(content)
+                                analyses.append(analysis)
+                                
+                                # Petite pause pour simuler le traitement
+                                time.sleep(0.5)
+                                
+                            except Exception as e:
+                                analyses.append({
+                                    'file_name': uploaded_file.name,
+                                    'error': str(e),
+                                    'status': 'ERROR'
+                                })
+                        
+                        # Affichage des résultats
+                        progress_bar.empty()
+                        status_text.empty()
+                        
+                        # Afficher le résumé des analyses
+                        display_batch_results(analyses)
+                        
+                        # Bouton d'export des résultats
+                        if st.button("💾 Exporter les résultats (CSX)"):
+                            # Créer un DataFrame pour l'export
+                            export_data = []
+                            for analysis in analyses:
+                                if 'error' not in analysis:
+                                    export_data.append({
+                                        'Fichier': analysis['file_name'],
+                                        'Statut': analysis['classification'],
+                                        'Confiance': f"{analysis['confidence']*100:.1f}%",
+                                        'Délai': analysis['criteres']['delai']['status'],
+                                        'Période': analysis['criteres']['periode']['status'],
+                                        'Prescription': analysis['criteres']['prescription']['status'],
+                                        'Répercussion': analysis['criteres']['repercussion']['status'],
+                                        'Observations': analysis['observations'][:200] + ('...' if len(analysis['observations']) > 200 else '')
+                                    })
+                            
+                            if export_data:
+                                df_export = pd.DataFrame(export_data)
+                                csv = df_export.to_csv(index=False, sep=';', encoding='utf-8-sig')
+                                st.download_button(
+                                    label="📥 Télécharger les résultats",
+                                    data=csv.encode('utf-8-sig'),
+                                    file_name=f"resultats_cspe_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                                    mime='text/csv'
+                                )
+                        
+                    except Exception as e:
+                        st.error(f"❌ Une erreur est survenue lors de l'analyse du lot : {str(e)}")
+                        st.exception(e)  # Pour le débogage
+                        
+                        # Réinitialiser la barre de progression en cas d'erreur
+                        progress_bar.empty()
+                        status_text.empty()
+        else:
+            st.info("ℹ️ Veuillez télécharger un ou plusieurs fichiers à analyser.")
+            
+            # Exemple de structure de dossier
+            with st.expander("📁 Structure de dossier recommandée", expanded=False):
+                st.markdown("""
+                Pour de meilleurs résultats, structurez vos dossiers comme suit :
+                
+                ```
+                Dossier_CSPE/
+                ├── Dossier_1/
+                │   ├── Réclamation.pdf
+                │   ├── Factures/
+                │   │   ├── Facture_2013.pdf
+                │   │   └── Facture_2014.pdf
+                │   └── Autres_pieces/
+                │       └── ...
+                └── Dossier_2/
+                    └── ...
+                ```
+                
+                Le système analysera automatiquement tous les fichiers texte, PDF et Word.
+                """)
 
 if __name__ == "__main__":
     main()

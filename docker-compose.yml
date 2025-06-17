@@ -7,7 +7,7 @@ services:
       - "8501:8501"
     environment:
       - OLLAMA_URL=http://cspe_ollama:11434  # Nom harmonisé
-      - DEFAULT_MODEL=mistral:7b
+      - DEFAULT_MODEL=mistral:latest
       - DATABASE_URL=sqlite:///app/data/cspe_local.db  # Base locale
     volumes:
       - ./data:/app/data
