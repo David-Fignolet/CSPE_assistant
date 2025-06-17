@@ -90,5 +90,70 @@ class TestDocumentProcessor:
             print(f"Résultat: {result}")
             assert result["is_valid"] is expected, f"Failed for: {text}"
 
+    def test_check_prescription_quadriennale(self):
+        """Teste la détection de la prescription quadriennale."""
+        processor = DocumentProcessor()
+        
+        # Cas 1: Date de fait ancienne (plus de 4 ans) - prescription acquise
+        text1 = "La facture date du 15 janvier 2018. Nous demandons le remboursement."
+        result1 = processor.check_prescription_quadriennale(text1, "2023-01-16")  # 5 ans après
+        assert result1["is_prescrit"] is True
+        assert "prescrite" in result1["message"].lower()
+        
+        # Cas 2: Date de fait récente (moins de 4 ans) - non prescrite
+        text2 = "La facture date du 15 janvier 2022. Nous demandons le remboursement."
+        result2 = processor.check_prescription_quadriennale(text2, "2023-01-16")  # 1 an après
+        assert result2["is_prescrit"] is False
+        
+        # Cas 3: Plusieurs dates - doit prendre la plus ancienne
+        text3 = "La facture initiale date du 10 mars 2018. Le complément est du 15 janvier 2022."
+        result3 = processor.check_prescription_quadriennale(text3, "2023-01-16")  # Doit prendre 2018
+        assert result3["is_prescrit"] is True
+        
+        # Cas 4: Pas de date détectée
+        text4 = "Ce document ne contient pas de date explicite."
+        result4 = processor.check_prescription_quadriennale(text4)
+        assert result4["is_prescrit"] is False
+        assert "aucune date" in result4["message"].lower()
+        
+        # Cas 5: Date limite pile poil (jour J)
+        text5 = "La facture date du 15 janvier 2019."
+        result5 = processor.check_prescription_quadriennale(text5, "2023-01-15")  # Exactement 4 ans après
+        assert result5["is_prescrit"] is False  # Le jour même n'est pas encore prescrit
+
+    def test_check_repercussion_client_final(self):
+        """Teste la détection de la répercussion sur le client final."""
+        processor = DocumentProcessor()
+        
+        # Cas 1: Répercussion clairement mentionnée
+        text1 = "Le surcoût a été intégralement répercuté sur le client final."
+        result1 = processor.check_repercussion_client_final(text1)
+        assert result1["repercussion_detectee"] is True
+        assert result1["confiance"] >= 0.8
+        assert len(result1["elements_pertinents"]) > 0
+        
+        # Cas 2: Répercussion avec une formulation différente
+        text2 = "Les montants ont été facturés au client final dans le cadre de la tarification."
+        result2 = processor.check_repercussion_client_final(text2)
+        assert result2["repercussion_detectee"] is True
+        
+        # Cas 3: Absence de répercussion mentionnée explicitement
+        text3 = "Le surcoût n'a pas été répercuté sur nos clients."
+        result3 = processor.check_repercussion_client_final(text3)
+        assert result3["repercussion_detectee"] is False
+        assert "absence" in result3["message"].lower()
+        
+        # Cas 4: Aucune mention de répercussion
+        text4 = "Ce document ne mentionne rien à propos des clients."
+        result4 = processor.check_repercussion_client_final(text4)
+        assert result4["repercussion_detectee"] is False
+        assert result4["confiance"] < 0.8  # Confiance plus faible car absence de preuve
+        
+        # Cas 5: Terme positif mais annulé par un négatif
+        text5 = "Bien que nous ayons initialement répercuté le coût, nous l'avons finalement supporté."
+        result5 = processor.check_repercussion_client_final(text5)
+        assert result5["repercussion_detectee"] is False
+        assert "supporté" in result5["message"]
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

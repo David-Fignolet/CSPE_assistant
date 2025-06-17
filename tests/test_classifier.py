@@ -269,3 +269,166 @@ if __name__ == "__main__":
     else:
         parser.print_help()
         print("\nVeuillez spécifier --test, --demo ou --file <fichier>")
+
+"""
+Tests unitaires pour le module classifier.py
+"""
+
+import pytest
+import json
+from datetime import datetime, timedelta
+from ..classifier import CSPEClassifier, ClassificationResult
+from ..document_processor import DocumentProcessor
+
+
+class TestCSPEClassifier:
+    """Tests pour la classe CSPEClassifier."""
+    
+    @pytest.fixture
+    def classifier(self):
+        """Fixture pour créer une instance de CSPEClassifier pour les tests."""
+        return CSPEClassifier()
+    
+    def test_classification_result_serialization(self):
+        """Teste la sérialisation de ClassificationResult."""
+        # Créer un résultat de test
+        result = ClassificationResult(
+            document_id="test_123",
+            timestamp="2023-01-01T12:00:00",
+            criteres={"test": {"est_valide": True, "message": "Test"}},
+            decision="RECEVABLE",
+            confiance=0.9,
+            raison="Test de sérialisation",
+            metadata={"source": "test"}
+        )
+        
+        # Vérifier la conversion en dictionnaire
+        result_dict = result.to_dict()
+        assert isinstance(result_dict, dict)
+        assert result_dict["document_id"] == "test_123"
+        assert result_dict["decision"] == "RECEVABLE"
+        
+        # Vérifier la sérialisation JSON
+        json_str = result.to_json()
+        assert isinstance(json_str, str)
+        assert "test_123" in json_str
+        
+        # Vérifier que le JSON peut être désérialisé
+        loaded = json.loads(json_str)
+        assert loaded["document_id"] == "test_123"
+    
+    def test_classifier_initialization(self):
+        """Teste l'initialisation du classifieur."""
+        # Test avec processeur par défaut
+        classifier1 = CSPEClassifier()
+        assert isinstance(classifier1.processor, DocumentProcessor)
+        
+        # Test avec processeur personnalisé
+        custom_processor = DocumentProcessor()
+        classifier2 = CSPEClassifier(processor=custom_processor)
+        assert classifier2.processor is custom_processor
+    
+    def test_classifier_document_recevable(self, classifier):
+        """Teste la classification d'un document recevable."""
+        # Document qui répond à tous les critères
+        texte = """
+        Par la présente, je sollicite le remboursement de la CSPE pour la période 2010-2014.
+        Le montant total s'élève à 1500,50 euros.
+        Cette demande est faite dans les délais légaux.
+        Le surcoût n'a pas été répercuté sur nos clients finaux.
+        """
+        
+        result = classifier.classifier_document(texte, document_id="test_recevable")
+        
+        # Vérifications de base
+        assert isinstance(result, ClassificationResult)
+        assert result.document_id == "test_recevable"
+        assert result.decision in ["RECEVABLE", "A_VERIFIER"]
+        assert result.confiance >= 0.7
+        
+        # Vérifier que tous les critères sont présents
+        assert all(critere in result.criteres for critere in [
+            'delai_reclamation', 
+            'periode_2009_2015', 
+            'prescription_quadriennale', 
+            'repercussion_client_final'
+        ])
+    
+    def test_classifier_document_irrecevable(self, classifier):
+        """Teste la classification d'un document irrecevable."""
+        # Document qui ne répond à aucun critère
+        texte = """
+        Je demande le remboursement de la CSPE pour 2022.
+        Le montant est de 1000 euros.
+        Le surcoût a été intégralement répercuté sur nos clients.
+        """
+        
+        result = classifier.classifier_document(texte, document_id="test_irrecevable")
+        
+        # Vérifications
+        assert result.decision in ["IRRECEVABLE", "A_VERIFIER"]
+        
+        # Vérifier que plusieurs critères ne sont pas respectés
+        criteres_invalides = sum(
+            1 for critere in result.criteres.values() 
+            if not critere.get('est_valide', True)
+        )
+        assert criteres_invalides >= 2
+    
+    def test_classifier_document_avec_metadonnees(self, classifier):
+        """Teste la classification avec des métadonnées supplémentaires."""
+        metadata = {
+            "source": "test",
+            "utilisateur": "user123",
+            "date_creation": "2023-01-01"
+        }
+        
+        texte = "Document de test avec métadonnées."
+        result = classifier.classifier_document(
+            texte, 
+            document_id="test_metadata",
+            metadata=metadata
+        )
+        
+        assert result.metadata == metadata
+    
+    def test_classifier_texte_vide(self, classifier):
+        """Teste le comportement avec un texte vide."""
+        with pytest.raises(ValueError):
+            classifier.classifier_document("")
+        
+        with pytest.raises(ValueError):
+            classifier.classifier_document(None)
+    
+    def test_classifier_decision_seuils(self, classifier, mocker):
+        """Teste les seuils de décision du classifieur."""
+        # Mock des méthodes de vérification pour contrôler les scores
+        def mock_verifier(*args, **kwargs):
+            return {
+                'est_valide': True,
+                'message': 'Test',
+                'details': {},
+                'confiance': 0.9
+            }
+        
+        # Appliquer les mocks
+        mocker.patch.object(classifier, '_verifier_delai_reclamation', mock_verifier)
+        mocker.patch.object(classifier, '_verifier_periode_2009_2015', mock_verifier)
+        mocker.patch.object(classifier, '_verifier_prescription_quadriennale', mock_verifier)
+        mocker.patch.object(classifier, '_verifier_repercussion_client_final', mock_verifier)
+        
+        # Tester avec un score élevé (devrait être RECEVABLE)
+        classifier.seuils['confiance_min'] = 0.8
+        result = classifier.classifier_document("Test")
+        assert result.decision == "RECEVABLE"
+        assert result.confiance >= 0.8
+        
+        # Tester avec un score moyen (devrait être A_VERIFIER)
+        classifier.seuils['confiance_min'] = 0.9  # Augmenter le seuil pour forcer A_VERIFIER
+        result = classifier.classifier_document("Test")
+        assert result.decision == "A_VERIFIER"
+        
+        # Tester avec un score bas (devrait être IRRECEVABLE)
+        classifier.seuils['confiance_moyenne'] = 0.9  # Augmenter le seuil moyen
+        result = classifier.classifier_document("Test")
+        assert result.decision == "IRRECEVABLE"

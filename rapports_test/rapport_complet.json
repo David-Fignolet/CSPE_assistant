@@ -1,0 +1,54 @@
+[
+  {
+    "fichier": "document1.txt",
+    "categorie": "inconnu",
+    "chemin": "D:\\PROJETS\\test_import\\dossier_recevable\\document1.txt",
+    "decision": "recevable",
+    "confiance": 0.9,
+    "criteres": {
+      "delai": {
+        "valide": true,
+        "details": "Délai respecté"
+      },
+      "periode": {
+        "valide": true,
+        "details": "Période 2009-2015"
+      },
+      "prescription": {
+        "valide": true,
+        "details": "Prescription quadriennale respectée"
+      },
+      "repercussion": {
+        "valide": true,
+        "details": "Répercussion client final démontrée"
+      }
+    },
+    "date_traitement": "2025-06-17T16:08:06.374624"
+  },
+  {
+    "fichier": "document2.txt",
+    "categorie": "inconnu",
+    "chemin": "D:\\PROJETS\\test_import\\dossier_irrecevable\\document2.txt",
+    "decision": "irrecevable",
+    "confiance": 0.9,
+    "criteres": {
+      "delai": {
+        "valide": true,
+        "details": "Délai respecté"
+      },
+      "periode": {
+        "valide": true,
+        "details": "Période 2009-2015"
+      },
+      "prescription": {
+        "valide": true,
+        "details": "Prescription quadriennale respectée"
+      },
+      "repercussion": {
+        "valide": true,
+        "details": "Répercussion client final démontrée"
+      }
+    },
+    "date_traitement": "2025-06-17T16:08:06.377660"
+  }
+]

@@ -1,0 +1,9 @@
+setup.py
+src/cspe_test.egg-info/PKG-INFO
+src/cspe_test.egg-info/SOURCES.txt
+src/cspe_test.egg-info/dependency_links.txt
+src/cspe_test.egg-info/requires.txt
+src/cspe_test.egg-info/top_level.txt
+src/processing/__init__.py
+src/processing/document_processor.py
+tests/test_import.py

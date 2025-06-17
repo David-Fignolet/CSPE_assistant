@@ -1,0 +1,61 @@
+﻿"""
+Tests d'intégration pour le classifieur CSPE avec des exemples concrets.
+"""
+
+import sys
+import os
+import json
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Any, Optional
+
+# Ajout du répertoire racine au PYTHONPATH
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    print("Avertissement: pandas n'est pas installé. Un rapport simplifié sera généré.")
+    PANDAS_AVAILABLE = False
+
+try:
+    from classifier import CSPEClassifier
+except ImportError as e:
+    print(f"Erreur: Impossible d'importer CSPEClassifier: {e}")
+    sys.exit(1)
+
+class IntegrationTester:
+    """Classe principale pour les tests d'intégration."""
+    
+    def __init__(self, base_dir: str = r"D:\PROJETS\test"):
+        self.base_dir = Path(base_dir)
+        self.classifier = CSPEClassifier()
+        self.results = []
+        
+    def run_tests(self):
+        """Exécute les tests sur tous les dossiers d'exemples."""
+        print("Démarrage des tests d'intégration...")
+        print(f"Répertoire de test: {self.base_dir}")
+        
+        # Vérifier que le répertoire existe
+        if not self.base_dir.exists():
+            print(f"Erreur: Le répertoire {self.base_dir} n'existe pas.")
+            return
+            
+        # Créer le répertoire de sortie
+        output_dir = Path(__file__).resolve().parent / "integration_results"
+        output_dir.mkdir(exist_ok=True, parents=True)
+        print(f"Résultats enregistrés dans: {output_dir}")
+
+def main():
+    try:
+        tester = IntegrationTester()
+        tester.run_tests()
+    except Exception as e:
+        print(f"Erreur inattendue: {e}")
+        return 1
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
