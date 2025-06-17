@@ -1,0 +1,29 @@
+SDER - RÉPARTITION CONSOMMATION ÉLECTRIQUE
+
+ANNÉE 2013 :
+Consommation totale : 2 450 MWh
+CSPE totale payée : 55 125,00 € (22,50 €/MWh)
+
+RÉPARTITION ANALYTIQUE :
+┌─────────────────────┬──────────┬──────────┬─────────────┐
+│ ACTIVITÉ            │ MWh      │ %        │ CSPE (€)    │
+├─────────────────────┼──────────┼──────────┼─────────────┤
+│ Revente clients     │ 1 715    │ 70%      │ 38 587,50   │
+│ Auto-consommation   │ 735      │ 30%      │ 16 537,50   │
+│ industrielle        │          │          │             │
+└─────────────────────┴──────────┴──────────┴─────────────┘
+
+═══════════════════════════════════════════════════════════════
+⚠️ ANALYSE INSTRUCTEUR :
+CAS COMPLEXE nécessitant expertise :
+- Vérifier la réalité de la séparation comptable
+- Contrôler les contrats clients (clauses CSPE)
+- Examiner l'activité industrielle réelle
+- Possibilité d'audit sur place
+
+→ INSTRUCTION COMPLÉMENTAIRE REQUISE
+Éléments à demander :
+• Certification expert-comptable de la répartition
+• Échantillon contrats clients avec mention CSPE
+• Justification technique de l'auto-consommation
+═══════════════════════════════════════════════════════════════

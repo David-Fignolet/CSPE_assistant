@@ -1,0 +1,198 @@
+{
+  "folder_path": "test_cases\\001_CAS_RECEVABLE",
+  "folder_name": "001_CAS_RECEVABLE",
+  "case_type": "Recevable",
+  "analysis_date": "2025-06-17T22:04:49.554491",
+  "documents_analyzed": 3,
+  "total_warnings": 3,
+  "dates_found": [],
+  "amounts_found": [],
+  "inconsistencies": [],
+  "documents": [
+    {
+      "file_path": "test_cases\\001_CAS_RECEVABLE\\01_reclamation_initial.txt",
+      "file_name": "01_reclamation_initial.txt",
+      "file_size": 1025,
+      "analysis_date": "2025-06-17T22:04:49.498636",
+      "entities": {},
+      "expert_analysis": {
+        "decision_globale": "à compléter",
+        "criteria": {
+          "delai_reclamation": {
+            "decision": "à compléter",
+            "details": "Aucune date trouvée dans le document",
+            "confiance": 0.0
+          },
+          "periode_couverte": {
+            "decision": "à compléter",
+            "details": "Aucune date valide trouvée",
+            "confiance": 0.0
+          },
+          "prescription_quadriennale": {
+            "decision": "à compléter",
+            "details": "Aucune date trouvée pour vérifier la prescription",
+            "confiance": 0.0
+          },
+          "repercussion_client_final": {
+            "decision": "à compléter",
+            "details": "Analyse de la répercussion non implémentée",
+            "confiance": 0.5
+          }
+        },
+        "extracted_data": {
+          "dates": [],
+          "montants": [
+            12.0,
+            15.0,
+            18.0,
+            125.0,
+            2013.0,
+            2014.0,
+            2015.0,
+            18456.78,
+            69100.0,
+            75001.0,
+            47891235.0,
+            398547123.0
+          ],
+          "sirets": [
+            "39854712300015"
+          ]
+        },
+        "metadata": {
+          "date_analyse": "2025-06-17T22:04:49.501142",
+          "version": "1.0.0"
+        }
+      },
+      "warnings": [
+        "Erreur d'extraction des entités: 'CSPEDocumentProcessor' object has no attribute 'extract_entities'"
+      ]
+    },
+    {
+      "file_path": "test_cases\\001_CAS_RECEVABLE\\02_facture_edf.txt",
+      "file_name": "02_facture_edf.txt",
+      "file_size": 1394,
+      "analysis_date": "2025-06-17T22:04:49.501142",
+      "entities": {},
+      "expert_analysis": {
+        "decision_globale": "irrecevable",
+        "criteria": {
+          "delai_reclamation": {
+            "decision": "recevable",
+            "details": "Date de référence: 10/02/2014, Délai: 31/12/2015",
+            "confiance": 0.9
+          },
+          "periode_couverte": {
+            "decision": "recevable",
+            "details": "Période couverte: 2013-2014",
+            "confiance": 0.9
+          },
+          "prescription_quadriennale": {
+            "decision": "irrecevable",
+            "details": "Date de référence: 15/12/2013, Prescription: 14/12/2017",
+            "confiance": 0.85
+          },
+          "repercussion_client_final": {
+            "decision": "à compléter",
+            "details": "Analyse de la répercussion non implémentée",
+            "confiance": 0.5
+          }
+        },
+        "extracted_data": {
+          "dates": [
+            "10/02/2014",
+            "15/01/2014",
+            "15/12/2013"
+          ],
+          "montants": [
+            1.0,
+            2.0,
+            10.0,
+            12.0,
+            12.45,
+            15.0,
+            20.0,
+            22.5,
+            36.0,
+            145.0,
+            1456.2,
+            2013.0,
+            2014.0,
+            3262.5,
+            4554.24,
+            18052.5,
+            22771.2,
+            27325.44,
+            45789123.0,
+            47891235.0
+          ],
+          "sirets": []
+        },
+        "metadata": {
+          "date_analyse": "2025-06-17T22:04:49.526886",
+          "version": "1.0.0"
+        }
+      },
+      "warnings": [
+        "Erreur d'extraction des entités: 'CSPEDocumentProcessor' object has no attribute 'extract_entities'"
+      ]
+    },
+    {
+      "file_path": "test_cases\\001_CAS_RECEVABLE\\03_attestation_expert_comptable.txt",
+      "file_name": "03_attestation_expert_comptable.txt",
+      "file_size": 977,
+      "analysis_date": "2025-06-17T22:04:49.550831",
+      "entities": {},
+      "expert_analysis": {
+        "decision_globale": "à compléter",
+        "criteria": {
+          "delai_reclamation": {
+            "decision": "à compléter",
+            "details": "Aucune date trouvée dans le document",
+            "confiance": 0.0
+          },
+          "periode_couverte": {
+            "decision": "à compléter",
+            "details": "Aucune date valide trouvée",
+            "confiance": 0.0
+          },
+          "prescription_quadriennale": {
+            "decision": "à compléter",
+            "details": "Aucune date trouvée pour vérifier la prescription",
+            "confiance": 0.0
+          },
+          "repercussion_client_final": {
+            "decision": "à compléter",
+            "details": "Analyse de la répercussion non implémentée",
+            "confiance": 0.5
+          }
+        },
+        "extracted_data": {
+          "dates": [],
+          "montants": [
+            12.0,
+            69.0,
+            89.0,
+            1247.0,
+            2010.0,
+            2013.0,
+            2014.0,
+            2015.0,
+            9222.22,
+            9234.56,
+            69002.0,
+            606200.0
+          ],
+          "sirets": []
+        },
+        "metadata": {
+          "date_analyse": "2025-06-17T22:04:49.552348",
+          "version": "1.0.0"
+        }
+      },
+      "warnings": [
+        "Erreur d'extraction des entités: 'CSPEDocumentProcessor' object has no attribute 'extract_entities'"
+      ]
+    }
+  ]
+}

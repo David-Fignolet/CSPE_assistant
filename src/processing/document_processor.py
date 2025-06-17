@@ -28,22 +28,33 @@ class CSPEDocumentProcessor:
     
     # Modèles de regex pour l'extraction
     DATE_PATTERNS = [
-        # Format JJ/MM/AAAA
+        # Format JJ/MM/AAAA ou JJ-MM-AAAA ou JJ.MM.AAAA
         (r'\b(0?[1-9]|[12][0-9]|3[01])[/\-\.](0?[1-9]|1[0-2])[/\-\.](20\d{2}|\d{2})\b', '%d/%m/%Y'),
-        # Format AAAA-MM-JJ
-        (r'\b(20\d{2})[\-\.](0?[1-9]|1[0-2])[\-\.](0?[1-9]|[12][0-9]|3[01])\b', '%Y-%m-%d'),
+        # Format AAAA-MM-JJ ou AAAA/MM/JJ ou AAAA.MM.JJ
+        (r'\b(20\d{2})[\-\./](0?[1-9]|1[0-2])[\-\./](0?[1-9]|[12][0-9]|3[01])\b', '%Y-%m-%d'),
+        # Format date en toutes lettres (ex: 15 mars 2023)
+        (r'\b(0?[1-9]|[12][0-9]|3[01])\s+(janvier|février|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|décembre)\s+(20\d{2}|\d{2})\b', 
+         lambda m: f"{m.group(1)} {self._get_month_number(m.group(2))} {m.group(3)}",
+         '%d %m %Y')
     ]
     
-    # Modèle pour les montants (euros)
-    AMOUNT_PATTERN = r'\b(\d{1,3}(?:[ \.]?\d{3})*(?:,\d{1,2})?)\s*(?:€|euros?|EUR)?\b'
-    
-    # Modèles pour les références
-    REFERENCE_PATTERNS = {
-        'facture': r'\b(?:facture|fact)\s*[n°:]*\s*([A-Z0-9\-/]+)\b',
-        'commande': r'\b(?:bon\s+de\s+commande|commande)\s*[n°:]*\s*([A-Z0-9\-/]+)\b',
-        'client': r'\b(?:client|code\s+client)\s*[n°:]*\s*([A-Z0-9\-/]+)\b',
+    # Dictionnaire des mois
+    MONTHS = {
+        'janvier': '01', 'février': '02', 'mars': '03', 'avril': '04', 'mai': '05', 'juin': '06',
+        'juillet': '07', 'août': '08', 'aout': '08', 'septembre': '09', 'octobre': '10',
+        'novembre': '11', 'décembre': '12'
     }
-
+    
+    # Modèle pour les montants (euros) avec contexte amélioré
+    AMOUNT_PATTERN = r'(?<![\d\-+±])(?<=\b|\s|^)(\d{1,3}(?:[ \u202F]?\d{3})*(?:[,\.]\d{1,2})?)(?=\s*(?:€|euros?|EUR|\b(?:TTC|HT|e\.?a\.?d\.?|soit|total|montant|prix))|\s|$)'
+    
+    # Modèles pour les références améliorés
+    REFERENCE_PATTERNS = {
+        'facture': r'\b(?:facture|fact\.?|n°\s*\d+)[\s:]*([A-Z0-9\-\/]{3,})\b',
+        'commande': r'\b(?:bon\s+de\s+commande|commande|CDE|n°\s*commande)[\s:]*([A-Z0-9\-\/]{3,})\b',
+        'client': r'\b(?:client|code\s+client|réf\.?\s*client)[\s:]*([A-Z0-9\-\/]{3,})\b',
+    }
+    
     def __init__(self, timezone: str = 'Europe/Paris'):
         """Initialise le processeur avec un fuseau horaire."""
         self.timezone = pytz.timezone(timezone)
@@ -55,12 +66,47 @@ class CSPEDocumentProcessor:
         self.amount_regex = re.compile(self.AMOUNT_PATTERN, re.IGNORECASE)
         self.ref_regexes = {k: re.compile(v, re.IGNORECASE) for k, v in self.REFERENCE_PATTERNS.items()}
 
+    def _get_month_number(self, month_str: str) -> str:
+        """Convertit le nom du mois en numéro."""
+        return self.MONTHS.get(month_str.lower(), '00')
+
     def _parse_date(self, date_str: str, date_fmt: str) -> Optional[date]:
         """Tente de parser une date à partir d'une chaîne et d'un format donnés."""
         try:
+            # Si le format contient des espaces, c'est une date en toutes lettres
+            if ' ' in date_str:
+                day, month, year = date_str.split()
+                date_str = f"{day} {month} {year}"
             return datetime.strptime(date_str, date_fmt).date()
-        except ValueError:
+        except (ValueError, AttributeError):
             return None
+
+    def _is_likely_amount(self, text: str, match: re.Match) -> bool:
+        """Vérifie si la correspondance est probablement un montant."""
+        # Exclure les numéros de téléphone, codes postaux, etc.
+        if len(match.group(1)) > 6:  # Les montants très longs sont suspects
+            return False
+            
+        # Vérifier le contexte autour du montant
+        start, end = match.span()
+        context_before = text[max(0, start-20):start].lower()
+        context_after = text[end:min(len(text), end+20)].lower()
+        
+        # Mots-clés qui indiquent un montant
+        amount_keywords = {
+            '€', 'euro', 'euros', 'eur', 'prix', 'total', 'montant', 
+            'facture', 'tva', 'ttc', 'ht', 'remise', 'acompte', 'règlement'
+        }
+        
+        # Si le contexte contient un mot-clé de montant
+        if any(keyword in context_before + context_after for keyword in amount_keywords):
+            return True
+            
+        # Vérifier si c'est dans un tableau (entouré de | ou de bordures)
+        if any(sep in context_before + context_after for sep in ['|', '┃', '║', '│']):
+            return True
+            
+        return False
 
     def extract_dates(self, text: str) -> List[CSPEEntity]:
         """Extrait les dates du texte."""
@@ -80,28 +126,34 @@ class CSPEDocumentProcessor:
         return entities
 
     def extract_amounts(self, text: str) -> List[CSPEEntity]:
-        """Extrait les montants du texte."""
+        """Extrait les montants du texte avec un filtre de contexte amélioré."""
         entities = []
-        # Pattern pour les montants avec symbole €
-        amount_patterns = [
-            (r'\b(\d{1,3}(?:[ \u202F]\d{3})*(?:,\d{1,2})?)\s*(?:€|euros?|EUR)\b', 0.9),
-            (r'(?<!\d)(\d{1,3}(?:[ \u202F]\d{3})*(?:,\d{1,2})?)(?!\d)', 0.7)  # Sans symbole
-        ]
-    
-        for pattern, confidence in amount_patterns:
-            for match in re.finditer(pattern, text, re.IGNORECASE):
-                amount_str = match.group(1).replace(' ', '').replace('\u202F', '').replace(',', '.')
-                try:
-                    amount = float(amount_str)
-                    entities.append(CSPEEntity(
-                        value=amount,
-                        entity_type='amount',
-                        start_pos=match.start(),
-                        end_pos=match.end(),
-                        confidence=confidence
-                    ))
-                except ValueError:
+        
+        for match in re.finditer(self.AMOUNT_PATTERN, text, re.IGNORECASE):
+            if not self._is_likely_amount(text, match):
+                continue
+                
+            amount_str = match.group(1).replace(' ', '').replace('\u202F', '').replace(',', '.')
+            try:
+                # Vérifier si c'est un nombre décimal valide
+                amount = float(amount_str)
+                
+                # Filtrer les nombres qui ne sont probablement pas des montants
+                if amount < 0.01 or amount > 10_000_000:  # Plage raisonnable pour des montants
                     continue
+                    
+                # Calculer la confiance basée sur le contexte
+                confidence = 0.9 if '€' in match.group(0) else 0.7
+                
+                entities.append(CSPEEntity(
+                    value=round(amount, 2),  # Arrondir à 2 décimales
+                    entity_type='amount',
+                    start_pos=match.start(),
+                    end_pos=match.end(),
+                    confidence=confidence
+                ))
+            except ValueError:
+                continue
                 
         return entities
 

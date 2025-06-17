@@ -1,0 +1,24 @@
+═══════════════════════════════════════════════════════════════
+                        EDF ENTREPRISES
+                     Direction Régionale Rhône-Alpes
+═══════════════════════════════════════════════════════════════
+
+FACTURE N° 45789123          DATE : 15/01/2014
+CLIENT : MÉTALLURGIE BERNARD SARL       CONTRAT : 047891235
+PÉRIODE : 15/12/2013 au 15/01/2014
+
+CONSOMMATION ÉLECTRICITÉ :
+Consommation période : 145 MWh
+Tarif Bleu > 36 kVA : 12,45 c€/kWh                   18 052,50 €
+
+TAXES ET CONTRIBUTIONS :
+CTA (Contribution Tarifaire d'Acheminement)          1 456,20 €
+CSPE (22,50 €/MWh) : 145 MWh x 22,50 €              3 262,50 €
+                                                     ═══════════
+SOUS-TOTAL HT                                        22 771,20 €
+TVA 20%                                              4 554,24 €
+                                                     ═══════════
+TOTAL TTC                                            27 325,44 €
+
+Mode de paiement : Prélèvement automatique
+Date limite de paiement : 10/02/2014

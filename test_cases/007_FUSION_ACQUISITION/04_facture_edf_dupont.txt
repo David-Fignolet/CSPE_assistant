@@ -1,0 +1,24 @@
+═══════════════════════════════════════════════════════════════
+                        EDF ENTREPRISES
+                    Direction Régionale Loire
+═══════════════════════════════════════════════════════════════
+
+FACTURE N° FD-2012-789          DATE : 20/12/2012
+CLIENT : FONDERIE DUPONT SARL            CONTRAT : 789456123
+PÉRIODE : 20/11/2012 au 20/12/2012
+
+CONSOMMATION ÉLECTRICITÉ :
+Consommation période : 234 MWh
+Tarif Vert A (> 250 kVA) : 8,75 c€/kWh              20 475,00 €
+
+TAXES ET CONTRIBUTIONS :
+CTA (Contribution Tarifaire d'Acheminement)          1 234,56 €
+CSPE (19,50 €/MWh) : 234 MWh x 19,50 €              4 563,00 €
+                                                     ═══════════
+SOUS-TOTAL HT                                        26 272,56 €
+TVA 19,6%                                            5 149,42 €
+                                                     ═══════════
+TOTAL TTC                                            31 421,98 €
+
+Date limite paiement : 20/01/2013
+Paiement effectué : 18/01/2013 ✓

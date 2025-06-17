@@ -30,15 +30,18 @@ def display_analysis(report: Dict[str, Any]) -> None:
     
     criteria = report.get('criteria', {})
     for critere, details in criteria.items():
-        with st.expander(f"🔍 {critere.replace('_', ' ').title()}"):
+        # Utilisation de st.container() au lieu de st.expander pour éviter l'imbrication
+        with st.container():
+            st.markdown(f"**{critere.replace('_', ' ').title()}**")
             st.write(f"**Décision :** {details.get('decision', 'N/A')}")
             st.write(f"**Détails :** {details.get('details', 'Non spécifié')}")
-            st.write(f"**Niveau de confiance :** {details.get('confiance', 0) * 100:.1f}%")
+            st.write(f"**Niveau de confiance :** {details.get('confidence', 0) * 100:.1f}%")
+            st.markdown("---")  # Ligne de séparation
     
     # Données extraites
     if 'extracted_data' in report and report['extracted_data']:
-        st.subheader("Données extraites")
-        st.json(report['extracted_data'], expanded=False)
+        with st.expander("🔍 Données extraites (cliquez pour afficher)"):
+            st.json(report['extracted_data'], expanded=False)
 
 def process_uploaded_file(uploaded_file, analyzer: CSPEExpertAnalyzer) -> Optional[Dict]:
     """Traite un fichier uploadé et retourne le résultat de l'analyse."""

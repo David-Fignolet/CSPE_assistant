@@ -1,0 +1,420 @@
+{
+  "date_analyse": "2025-06-17 21:52:09.350882",
+  "nb_dossiers": 7,
+  "resultats": [
+    {
+      "dossier": "001_CAS_RECEVABLE",
+      "type": "Recevable",
+      "nb_fichiers": 3,
+      "fichiers": [
+        {
+          "nom": "01_reclamation_initial.txt",
+          "taille_ko": 1.0,
+          "lignes": 34,
+          "analyse": {
+            "motifs_irrecevabilite": {},
+            "montants_trouves": [
+              "125",
+              "69100",
+              "398 547 123",
+              "00015",
+              "18"
+            ],
+            "dates_trouvees": [],
+            "mots_cles_trouves": [
+              "CSPE",
+              "FACTURE",
+              "CLIENT"
+            ]
+          }
+        },
+        {
+          "nom": "02_facture_edf.txt",
+          "taille_ko": 1.36,
+          "lignes": 24,
+          "analyse": {
+            "motifs_irrecevabilite": {
+              "fusion_acquisition": true
+            },
+            "montants_trouves": [
+              "45789123",
+              "15",
+              "01",
+              "2014",
+              "047891235"
+            ],
+            "dates_trouvees": [
+              "15/01/2014",
+              "15/12/2013",
+              "15/01/2014",
+              "10/02/2014"
+            ],
+            "mots_cles_trouves": [
+              "CSPE",
+              "FACTURE",
+              "CONSOMMATION",
+              "KWH",
+              "CLIENT"
+            ]
+          }
+        },
+        {
+          "nom": "03_attestation_expert_comptable.txt",
+          "taille_ko": 0.95,
+          "lignes": 29,
+          "analyse": {
+            "motifs_irrecevabilite": {
+              "fusion_acquisition": true
+            },
+            "montants_trouves": [
+              "89",
+              "69002",
+              "12",
+              "2015",
+              "69"
+            ],
+            "dates_trouvees": [],
+            "mots_cles_trouves": [
+              "CSPE",
+              "CLIENT"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "dossier": "002_IRRECEVABLE_DELAI_DEPASSE",
+      "type": "Irrecevable (Délai dépassé)",
+      "nb_fichiers": 1,
+      "fichiers": [
+        {
+          "nom": "01_reclamation_tardive.txt",
+          "taille_ko": 1.2,
+          "lignes": 31,
+          "analyse": {
+            "motifs_irrecevabilite": {},
+            "montants_trouves": [
+              "15",
+              "84000",
+              "25",
+              "2017",
+              "2014"
+            ],
+            "dates_trouvees": [
+              "31/12/2015",
+              "31/12/2016"
+            ],
+            "mots_cles_trouves": [
+              "CSPE",
+              "FACTURE",
+              "CLIENT"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "dossier": "003_IRRECEVABLE_PERIODE_NON_COUVERTE",
+      "type": "Irrecevable (Période non couverte)",
+      "nb_fichiers": 1,
+      "fichiers": [
+        {
+          "nom": "01_reclamation_hors_periode.txt",
+          "taille_ko": 1.39,
+          "lignes": 38,
+          "analyse": {
+            "motifs_irrecevabilite": {
+              "periode_non_couverte": true
+            },
+            "montants_trouves": [
+              "13270",
+              "15",
+              "2015",
+              "2007",
+              "2016"
+            ],
+            "dates_trouvees": [],
+            "mots_cles_trouves": [
+              "CSPE",
+              "FACTURE"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "dossier": "004_IRRECEVABLE_PRESCRIPTION",
+      "type": "Irrecevable (Prescription quadriennale)",
+      "nb_fichiers": 2,
+      "fichiers": [
+        {
+          "nom": "01_reclamation_initiale.txt",
+          "taille_ko": 0.45,
+          "lignes": 19,
+          "analyse": {
+            "motifs_irrecevabilite": {},
+            "montants_trouves": [
+              "45",
+              "33000",
+              "12",
+              "2011",
+              "2010"
+            ],
+            "dates_trouvees": [],
+            "mots_cles_trouves": [
+              "CSPE"
+            ]
+          }
+        },
+        {
+          "nom": "02_relance_tardive.txt",
+          "taille_ko": 0.88,
+          "lignes": 24,
+          "analyse": {
+            "motifs_irrecevabilite": {
+              "prescription_quadriennale": true
+            },
+            "montants_trouves": [
+              "45",
+              "33000",
+              "05",
+              "2016",
+              "2010"
+            ],
+            "dates_trouvees": [
+              "12/01/2011",
+              "12/01/2015",
+              "05/06/2016"
+            ],
+            "mots_cles_trouves": [
+              "CSPE"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "dossier": "005_IRRECEVABLE_REPERCUSSION_CLIENT",
+      "type": "Irrecevable (Répercussion client)",
+      "nb_fichiers": 2,
+      "fichiers": [
+        {
+          "nom": "01_reclamation.txt",
+          "taille_ko": 0.6,
+          "lignes": 25,
+          "analyse": {
+            "motifs_irrecevabilite": {},
+            "montants_trouves": [
+              "125",
+              "75016",
+              "20",
+              "2015",
+              "2013"
+            ],
+            "dates_trouvees": [],
+            "mots_cles_trouves": [
+              "CSPE",
+              "FACTURE"
+            ]
+          }
+        },
+        {
+          "nom": "02_extrait_charges_copropriete.txt",
+          "taille_ko": 0.98,
+          "lignes": 17,
+          "analyse": {
+            "motifs_irrecevabilite": {
+              "repercussion_client": true
+            },
+            "montants_trouves": [
+              "2014",
+              "12 456.78",
+              "15 678.90",
+              "4 234.56",
+              "8 765.43"
+            ],
+            "dates_trouvees": [],
+            "mots_cles_trouves": [
+              "CSPE",
+              "CLIENT"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "dossier": "006_CAS_COMPLEXE",
+      "type": "Complexe (Analyse experte requise)",
+      "nb_fichiers": 2,
+      "fichiers": [
+        {
+          "nom": "01_reclamation_ambigue.txt",
+          "taille_ko": 0.81,
+          "lignes": 28,
+          "analyse": {
+            "motifs_irrecevabilite": {},
+            "montants_trouves": [
+              "13100",
+              "30",
+              "2015",
+              "2012",
+              "2014"
+            ],
+            "dates_trouvees": [],
+            "mots_cles_trouves": [
+              "CSPE",
+              "CONSOMMATION",
+              "CLIENT"
+            ]
+          }
+        },
+        {
+          "nom": "02_note_interne_comptable.txt",
+          "taille_ko": 1.82,
+          "lignes": 29,
+          "analyse": {
+            "motifs_irrecevabilite": {},
+            "montants_trouves": [
+              "2013",
+              "2 450",
+              "55 125.00",
+              "22.50",
+              "1 715"
+            ],
+            "dates_trouvees": [],
+            "mots_cles_trouves": [
+              "CSPE",
+              "CONSOMMATION",
+              "CLIENT"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "dossier": "007_FUSION_ACQUISITION",
+      "type": "Fusion/Acquisition",
+      "nb_fichiers": 5,
+      "fichiers": [
+        {
+          "nom": "01_reclamation_initiale.txt",
+          "taille_ko": 2.14,
+          "lignes": 51,
+          "analyse": {
+            "motifs_irrecevabilite": {
+              "fusion_acquisition": true
+            },
+            "montants_trouves": [
+              "789",
+              "42000",
+              "789 456 123",
+              "00027",
+              "28"
+            ],
+            "dates_trouvees": [
+              "30/12/2013"
+            ],
+            "mots_cles_trouves": [
+              "CSPE",
+              "FACTURE"
+            ]
+          }
+        },
+        {
+          "nom": "02_acte_fusion.txt",
+          "taille_ko": 1.15,
+          "lignes": 28,
+          "analyse": {
+            "motifs_irrecevabilite": {
+              "fusion_acquisition": true
+            },
+            "montants_trouves": [
+              "15",
+              "2014",
+              "2014",
+              "456",
+              "123 456 789"
+            ],
+            "dates_trouvees": [],
+            "mots_cles_trouves": []
+          }
+        },
+        {
+          "nom": "03_recepisse_cre_martin.txt",
+          "taille_ko": 1.04,
+          "lignes": 29,
+          "analyse": {
+            "motifs_irrecevabilite": {},
+            "montants_trouves": [
+              "2013",
+              "8947",
+              "30",
+              "2013",
+              "987 654 321"
+            ],
+            "dates_trouvees": [],
+            "mots_cles_trouves": [
+              "CSPE",
+              "FACTURE"
+            ]
+          }
+        },
+        {
+          "nom": "04_facture_edf_dupont.txt",
+          "taille_ko": 1.34,
+          "lignes": 24,
+          "analyse": {
+            "motifs_irrecevabilite": {
+              "fusion_acquisition": true
+            },
+            "montants_trouves": [
+              "2012",
+              "789",
+              "20",
+              "12",
+              "2012"
+            ],
+            "dates_trouvees": [
+              "20/12/2012",
+              "20/11/2012",
+              "20/12/2012",
+              "20/01/2013",
+              "18/01/2013"
+            ],
+            "mots_cles_trouves": [
+              "CSPE",
+              "FACTURE",
+              "CONSOMMATION",
+              "KWH",
+              "CLIENT"
+            ]
+          }
+        },
+        {
+          "nom": "05_note_interne_optimisation.txt",
+          "taille_ko": 1.3,
+          "lignes": 36,
+          "analyse": {
+            "motifs_irrecevabilite": {
+              "fusion_acquisition": true
+            },
+            "montants_trouves": [
+              "15",
+              "2014",
+              "2011",
+              "2014",
+              "68 000"
+            ],
+            "dates_trouvees": [
+              "31/12/2015",
+              "30/12/2013"
+            ],
+            "mots_cles_trouves": [
+              "CSPE"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
