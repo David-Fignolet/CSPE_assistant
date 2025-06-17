@@ -14,7 +14,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Configuration du modèle
-    DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "mistral:7b")
+    DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "mistral:latest")
     OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
     
     # Chemins

@@ -1,13 +1,22 @@
 ﻿import logging
 from datetime import datetime
 from typing import Dict, Optional
+import config
 
 class CSPEClassifier:
     """Classe pour la classification des dossiers CSPE"""
     
-    def __init__(self, model_name: str = "mistral:7b"):
-        self.model_name = model_name
+    def __init__(self, model_name: str = None):
+        """
+        Initialise le classifieur avec le modèle spécifié.
+        
+        Args:
+            model_name: Nom du modèle Ollama à utiliser (par défaut: valeur de la config)
+        """
+        self.model_name = model_name or config.DEFAULT_MODEL
+        self.ollama_url = f"{config.OLLAMA_URL}/api/generate"
         self.logger = logging.getLogger(__name__)
+        self.logger.info(f"Initialisation du classifieur avec le modèle: {self.model_name}")
         
     def analyze_document(self, text: str, metadata: Optional[Dict] = None) -> Dict:
         """
