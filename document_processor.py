@@ -99,44 +99,67 @@ class SmartEntityExtractor:
         return results
 
     def extract_amounts(self, text: str) -> List[ExtractedEntity]:
-        """Extract amounts from text."""
+        """Extract amounts from text with improved number handling."""
         amounts = []
+        
+        # Format français : 1 234,56 € ou 1 234,5 € ou 1 234 €
+        fr_amount_pattern = r'(\d{1,3}(?:\s\d{3})*(?:,\d{1,2})?)\s*[€$]?'
+        
+        # Format international : 1,234.56 $ ou 1,234.5 $ ou 1,234 $
+        int_amount_pattern = r'(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)\s*[€$]?'
+        
+        # Format simple : 1234.56 ou 1234,56
+        simple_pattern = r'\b(\d+(?:[.,]\d{1,2})?)\b'
 
-        # Format français : 1 234,56 €
-        fr_amount_pattern = r'(\d{1,3}(?:\s\d{3})*(?:,\d{2}))\s*(?:€|\$\|euro|dollar)?'
-        for match in re.finditer(fr_amount_pattern, text):
-            try:
-                amount_str = match.group(1).replace(' ', '').replace(',', '.')
-                # Vérifier que nous avons bien un nombre avec 2 décimales
-                if re.match(r'^\d+\.\d{2}$', amount_str):
-                    amounts.append(ExtractedEntity(
-                        type="amount",
-                        value=amount_str,
-                        confidence=0.9,
-                        start_pos=match.start(),
-                        end_pos=match.end(),
-                        source="regex"
-                    ))
-            except Exception as e:
-                print(f"Erreur lors de l'extraction du montant: {e}")
-
-        # Format international : 1,234.56 € ou 1234.56
-        int_amount_pattern = r'(\d{1,3}(?:,\d{3})*\.\d{2}|\d+\.\d{2})\s*(?:€|\$\|euro|dollar)?'
-        for match in re.finditer(int_amount_pattern, text):
-            try:
-                amount_str = match.group(1).replace(',', '')
-                # Vérifier que nous avons bien un nombre avec 2 décimales
-                if re.match(r'^\d+\.\d{2}$', amount_str):
-                    amounts.append(ExtractedEntity(
-                        type="amount",
-                        value=amount_str,
-                        confidence=0.9,
-                        start_pos=match.start(),
-                        end_pos=match.end(),
-                        source="regex"
-                    ))
-            except Exception as e:
-                print(f"Erreur lors de l'extraction du montant: {e}")
+        # Chercher les montants dans tous les formats
+        for pattern in [fr_amount_pattern, int_amount_pattern, simple_pattern]:
+            for match in re.finditer(pattern, text):
+                try:
+                    amount_str = match.group(1)
+                    
+                    # Normalisation du format
+                    if ',' in amount_str and '.' in amount_str:
+                        # Format avec séparateurs de milliers et décimales
+                        if amount_str.find(',') < amount_str.find('.'):
+                            # Format européen : 1.234,56 → 1234.56
+                            amount_str = amount_str.replace('.', '').replace(',', '.')
+                        else:
+                            # Format international : 1,234.56 → 1234.56
+                            amount_str = amount_str.replace(',', '')
+                    elif ',' in amount_str:
+                        # Format européen : 1 234,56 ou 1,56
+                        if len(amount_str) > 3 and amount_str[-3] == ',':
+                            # Format avec décimales
+                            amount_str = amount_str.replace(' ', '').replace(',', '.')
+                        else:
+                            # Format simple avec virgule comme séparateur décimal
+                            amount_str = amount_str.replace(' ', '').replace(',', '.')
+                    elif '.' in amount_str:
+                        # Format international : 1.234 ou 1.23
+                        if len(amount_str) > 3 and amount_str[-3] == '.':
+                            # Format avec décimales
+                            amount_str = amount_str.replace('.', '')
+                        else:
+                            # Format avec point comme séparateur de milliers
+                            amount_str = amount_str.replace('.', '')
+                    
+                    # Validation finale
+                    if re.match(r'^\d+(\.\d{1,2})?$', amount_str):
+                        # Formatage à 2 décimales
+                        amount_float = float(amount_str)
+                        normalized_amount = f"{amount_float:.2f}"
+                        
+                        amounts.append(ExtractedEntity(
+                            type="amount",
+                            value=normalized_amount,
+                            confidence=0.95,
+                            start_pos=match.start(),
+                            end_pos=match.end(),
+                            source="regex"
+                        ))
+                        
+                except Exception as e:
+                    print(f"Erreur lors de l'extraction du montant: {e}")
 
         return amounts
 

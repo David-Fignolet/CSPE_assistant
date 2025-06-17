@@ -1,0 +1,73 @@
+2025-06-17 02:28:19,817 - src.models.classifier - INFO - Début de l'analyse du document
+2025-06-17 02:28:19,936 - src.models.classifier - ERROR - Erreur lors de l'appel à l'API Ollama: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+2025-06-17 02:28:19,936 - src.models.classifier - ERROR - Erreur lors de l'analyse du document: Erreur de communication avec le service d'IA: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+Traceback (most recent call last):
+  File "D:\PROJETS\CSPE_assistant\src\models\classifier.py", line 109, in _call_ollama
+    response.raise_for_status()
+  File "C:\Users\katze\AppData\Roaming\Python\Python312\site-packages\requests\models.py", line 1024, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\PROJETS\CSPE_assistant\src\models\classifier.py", line 46, in analyze_document
+    raw_response = self._call_ollama(prompt)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PROJETS\CSPE_assistant\src\models\classifier.py", line 114, in _call_ollama
+    raise Exception(f"Erreur de communication avec le service d'IA: {str(e)}")
+Exception: Erreur de communication avec le service d'IA: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+2025-06-17 02:28:29,216 - src.models.classifier - INFO - Début de l'analyse du document
+2025-06-17 02:28:29,237 - src.models.classifier - ERROR - Erreur lors de l'appel à l'API Ollama: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+2025-06-17 02:28:29,238 - src.models.classifier - ERROR - Erreur lors de l'analyse du document: Erreur de communication avec le service d'IA: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+Traceback (most recent call last):
+  File "D:\PROJETS\CSPE_assistant\src\models\classifier.py", line 109, in _call_ollama
+    response.raise_for_status()
+  File "C:\Users\katze\AppData\Roaming\Python\Python312\site-packages\requests\models.py", line 1024, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\PROJETS\CSPE_assistant\src\models\classifier.py", line 46, in analyze_document
+    raw_response = self._call_ollama(prompt)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PROJETS\CSPE_assistant\src\models\classifier.py", line 114, in _call_ollama
+    raise Exception(f"Erreur de communication avec le service d'IA: {str(e)}")
+Exception: Erreur de communication avec le service d'IA: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+2025-06-17 02:29:48,172 - src.models.classifier - INFO - Début de l'analyse du document
+2025-06-17 02:29:48,184 - src.models.classifier - ERROR - Erreur lors de l'appel à l'API Ollama: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+2025-06-17 02:29:48,184 - src.models.classifier - ERROR - Erreur lors de l'analyse du document: Erreur de communication avec le service d'IA: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+Traceback (most recent call last):
+  File "D:\PROJETS\CSPE_assistant\src\models\classifier.py", line 109, in _call_ollama
+    response.raise_for_status()
+  File "C:\Users\katze\AppData\Roaming\Python\Python312\site-packages\requests\models.py", line 1024, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\PROJETS\CSPE_assistant\src\models\classifier.py", line 46, in analyze_document
+    raw_response = self._call_ollama(prompt)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PROJETS\CSPE_assistant\src\models\classifier.py", line 114, in _call_ollama
+    raise Exception(f"Erreur de communication avec le service d'IA: {str(e)}")
+Exception: Erreur de communication avec le service d'IA: 404 Client Error: Not Found for url: http://localhost:11434/api/generate
+2025-06-17 02:33:01,008 - src.models.classifier - INFO - Début de l'analyse du document
+2025-06-17 02:33:01,019 - src.models.classifier - INFO - Analyse du document terminée avec succès
+2025-06-17 02:35:01,554 - src.models.classifier - INFO - Début de l'analyse du document
+2025-06-17 02:35:01,554 - src.models.classifier - INFO - Analyse du document terminée avec succès
+2025-06-17 02:35:04,460 - src.models.classifier - INFO - Début de l'analyse du document
+2025-06-17 02:35:04,460 - src.models.classifier - INFO - Analyse du document terminée avec succès
+2025-06-17 02:35:19,652 - src.models.classifier - INFO - Début de l'analyse du document
+2025-06-17 02:35:19,656 - src.models.classifier - INFO - Analyse du document terminée avec succès
+2025-06-17 02:39:04,359 - src.models.classifier - INFO - Début de l'analyse du document
+2025-06-17 02:39:04,360 - src.models.classifier - INFO - Analyse du document terminée avec succès
+2025-06-17 02:39:15,849 - src.models.classifier - INFO - Début de l'analyse du document
+2025-06-17 02:39:15,856 - src.models.classifier - INFO - Analyse du document terminée avec succès
+2025-06-17 02:40:34,061 - src.models.classifier - INFO - Début de l'analyse du document
+2025-06-17 02:40:34,062 - src.models.classifier - INFO - Analyse du document terminée avec succès
+2025-06-17 02:41:55,848 - src.models.classifier - INFO - Début de l'analyse du document
+2025-06-17 02:41:55,848 - src.models.classifier - INFO - Analyse du document terminée avec succès
